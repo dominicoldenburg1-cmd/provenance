@@ -55,7 +55,11 @@ p{margin:0 0 10px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
 .chip{flex:none;font:500 12px var(--mono);padding:6px 11px;border:1px solid var(--line);background:var(--card);border-radius:99px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
-.mapwrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px}
+.mapwrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px;position:relative;z-index:0;isolation:isolate}
+#lmap{height:min(58vh,440px);width:100%;background:var(--water)}
+.leaflet-container{font-family:var(--body)}
+.linkrow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
+.linkrow a{font:500 12px var(--mono);padding:7px 11px;border:1px solid var(--line);border-radius:99px;color:var(--ink);text-decoration:none;background:var(--card)}
 .btn{display:block;width:100%;font:600 14px var(--body);padding:12px 14px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:var(--card);cursor:pointer;margin-top:8px}
 .btn.alt{background:transparent;color:var(--ink)}
 .btn.seal{background:var(--seal);border-color:var(--seal);color:#fff}
@@ -98,7 +102,7 @@ button:focus-visible,.stamp:focus-visible{outline:2px solid var(--sea);outline-o
 @keyframes pulse{from{transform:scale(1);opacity:.8}to{transform:scale(2.8);opacity:0}}
 @keyframes thunk{0%{transform:scale(1.6) rotate(-9deg);opacity:0}100%{transform:scale(1) rotate(-3deg);opacity:1}}
 </style>
-<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"></head>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="vendor/leaflet/leaflet.css"><script src="vendor/leaflet/leaflet.js"></script></head>
 <body>
 <div id="app"></div>
 <script>
@@ -624,7 +628,49 @@ function stampHTML(f){
   return `<button class="stamp ${got?'':'locked'}" data-a="fig" data-id="${f.id}" aria-label="${got?f.name:'Unknown figure in '+statesFor(f.id)}">${rosette(f.id,64,got?t.c:'var(--muted)',got?initials(f.name):'?')}<div class="sn">${got?f.name:'Unknown'}</div><div class="sy">${got?(f.years.length>12?TIER[f.tier].label:f.years):statesFor(f.id)}</div>${got&&c.count>1?`<span class="copies">×${c.count}</span>`:''}</button>`;
 }
 
-/* ---------- Map ---------- */
+
+/* ---------- Real map (Leaflet + OpenStreetMap) ---------- */
+let LM=null,mapEl=null,mkLayer=null;
+const HAVE_L=typeof L!=='undefined';
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#888';}
+function initLM(){
+  if(LM||!HAVE_L)return;
+  mapEl=document.createElement('div');mapEl.id='lmap';
+  LM=L.map(mapEl,{zoomControl:true,worldCopyJump:false,minZoom:3,maxZoom:19});
+  const street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'});
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery &copy; Esri'});
+  street.addTo(LM);
+  L.control.layers({'Street':street,'Satellite':sat},null,{position:'topright'}).addTo(LM);
+  mkLayer=L.layerGroup().addTo(LM);
+  const r=REG[S.region]||REG.usa;
+  LM.fitBounds([[r[2],r[0]],[r[3],r[1]]]);
+}
+function updateMarkers(){
+  if(!LM)return;
+  mkLayer.clearLayers();
+  const seal=cssv('--seal'),ink=cssv('--ink'),card=cssv('--card'),sea=cssv('--sea');
+  for(const site of SITES){
+    const seen=!!S.visits[site.id],near=inRange(site),sel=site.id===ui.sel;
+    if(sel)L.circle([site.lat,site.lon],{radius:RANGE*1609.34,color:ink,weight:1.5,dashArray:'5 5',fill:true,fillOpacity:.06,interactive:false}).addTo(mkLayer);
+    const m=L.circleMarker([site.lat,site.lon],{radius:sel?11:near?10:8,weight:sel?3:2,color:near?seal:(seen?card:ink),fillColor:seen?seal:card,fillOpacity:1}).addTo(mkLayer);
+    m.bindTooltip(site.name,{direction:'top',offset:[0,-6]});
+    m.on('click',()=>act('sel',{dataset:{id:site.id}}));
+  }
+  L.circleMarker([S.pos.lat,S.pos.lon],{radius:7,weight:3,color:'#fff',fillColor:sea,fillOpacity:1,interactive:false}).addTo(mkLayer);
+  L.circle([S.pos.lat,S.pos.lon],{radius:RANGE*1609.34,color:sea,weight:1,fillColor:sea,fillOpacity:.08,interactive:false}).addTo(mkLayer);
+}
+function attachMap(){
+  if(!HAVE_L||S.tab!=='map')return;
+  const slot=document.getElementById('mapslot');if(!slot)return;
+  initLM();
+  if(mapEl.parentNode!==slot)slot.appendChild(mapEl);
+  LM.invalidateSize();
+  updateMarkers();
+}
+const gmaps=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`;
+const gdir=s=>`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lon}`;
+
+/* ---------- Map (SVG fallback) ---------- */
 function mapHTML(){
   if(!vb)vb=vbFor(S.region);
   const cw=Math.min(window.innerWidth,560)-34,k=vb.w/cw;
@@ -656,7 +702,7 @@ function tweenTo(to){
     if(p<1)requestAnimationFrame(step);else{vb=to;render();}}
   requestAnimationFrame(step);
 }
-function goRegion(key){S.region=key;save();render();tweenTo(vbFor(key));}
+function goRegion(key){S.region=key;save();render();if(LM){const r=REG[key];LM.flyToBounds([[r[2],r[0]],[r[3],r[1]]],{duration:.8});}else tweenTo(vbFor(key));}
 
 function siteCard(){
   if(!ui.sel){
@@ -677,7 +723,7 @@ function siteCard(){
     <p>${seen?`Figure: <b>${f.name}</b> <span class="tier" style="color:${TIER[f.tier].c}">${TIER[f.tier].label}</span>`:`<span class="hint">${site.hint}</span>`}</p>
     ${seen?`<p class="muted" style="font-size:13px">Why here: ${PROOF[site.id]}</p>`:''}
     ${site.memorial?`<div class="note">This collection point sits outside the grounds of a place that calls for respect. Please do not enter the grounds to play. Visits are recorded quietly, with no celebration.</div>`:''}
-    ${btn}<button class="btn alt" data-a="zoomsite" data-id="${site.id}">Zoom in on the map</button><button class="btn alt" data-a="clearsel">Back to the list</button></div>`;
+    ${btn}<button class="btn alt" data-a="zoomsite" data-id="${site.id}">Zoom to the exact spot</button><div class="linkrow"><a href="${gmaps(site)}" target="_blank" rel="noopener">Open in Google Maps</a><a href="${gdir(site)}" target="_blank" rel="noopener">Directions</a></div><button class="btn alt" data-a="clearsel">Back to the list</button></div>`;
 }
 function gpsCard(){
   return `<div class="card"><div class="eyebrow">LOCATION</div>
@@ -768,12 +814,13 @@ function nav(){return `<nav>${[['map','Map'],['album','Album'],['trade','Trade']
 function body(){
   if(S.tab==='album')return albumHTML();
   if(S.tab==='trade')return tradeHTML();
-  return `<div class="chips" role="group" aria-label="Map region">${Object.keys(REG).map(k=>`<button class="chip" data-a="region" data-id="${k}" aria-pressed="${S.region===k}">${REG[k][4]}</button>`).join('')}</div><div class="mapwrap">${mapHTML()}</div>${siteCard()}`;
+  return `<div class="chips" role="group" aria-label="Map region">${Object.keys(REG).map(k=>`<button class="chip" data-a="region" data-id="${k}" aria-pressed="${S.region===k}">${REG[k][4]}</button>`).join('')}</div>${HAVE_L?'<div class="mapwrap" id="mapslot"></div>':'<div class="mapwrap">'+mapHTML()+'</div>'}${siteCard()}`;
 }
 function render(keep=true){
   const m=document.getElementById('view'),st=m?m.scrollTop:0;
   app.innerHTML=`${header()}<main id="view">${body()}</main>${nav()}${ui.study?studySheet():ui.fig?figSheet():''}`;
   const m2=document.getElementById('view');if(keep&&m2)m2.scrollTop=st;
+  attachMap();
 }
 const app=document.getElementById('app');
 
@@ -783,18 +830,18 @@ function gps(){
   ui.gpsMsg='Asking for your location...';render();
   try{navigator.geolocation.getCurrentPosition(
     p=>{S.pos={lat:p.coords.latitude,lon:p.coords.longitude,label:'Your location',mode:'gps'};ui.gpsMsg='';save();render();},
-    ()=>{ui.gpsMsg='Location is blocked in this preview, so demo travel stays on. A phone app would use real GPS here.';render();},
+    ()=>{ui.gpsMsg='Location permission was denied or timed out, so demo travel stays on. Allow location for this site in your phone settings to use real GPS.';render();},
     {enableHighAccuracy:true,timeout:8000});
-  }catch(e){ui.gpsMsg='Location is blocked in this preview, so demo travel stays on.';render();}
+  }catch(e){ui.gpsMsg='Location could not be read, so demo travel stays on.';render();}
 }
 function act(a,el){
   switch(a){
     case 'tab':S.tab=el.dataset.id;ui.sel=null;save();render(false);break;
     case 'region':goRegion(el.dataset.id);break;
-    case 'zoomsite':{const t=SITE[el.dataset.id],w=5,h=w/AR;tweenTo({x:px(t.lon)-w/2,y:py(t.lat)-h/2,w,h});break;}
+    case 'zoomsite':{const t=SITE[el.dataset.id];if(LM)LM.flyTo([t.lat,t.lon],18,{duration:.9});else{const w=5,h=w/AR;tweenTo({x:px(t.lon)-w/2,y:py(t.lat)-h/2,w,h});}break;}
     case 'afilter':ui.afilter=el.dataset.id;render();break;
-    case 'sel':ui.sel=el.dataset.id;render();break;
-    case 'clearsel':ui.sel=null;render();break;
+    case 'sel':{ui.sel=el.dataset.id;render();const t=SITE[ui.sel];if(LM&&t)LM.flyTo([t.lat,t.lon],Math.max(LM.getZoom(),14),{duration:.7});break;}
+    case 'clearsel':ui.sel=null;render();if(LM)updateMarkers();break;
     case 'travel':{const s=SITE[el.dataset.id];S.pos={lat:s.lat,lon:s.lon,label:s.name,mode:'demo'};save();render();break;}
     case 'gps':gps();break;
     case 'demo':S.pos.mode='demo';ui.gpsMsg='';save();render();break;
