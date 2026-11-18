@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Provenance</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,7 +56,8 @@ p{margin:0 0 10px}
 .chip{flex:none;font:500 12px var(--mono);padding:6px 11px;border:1px solid var(--line);background:var(--card);border-radius:99px;cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
 .mapwrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px;position:relative;z-index:0;isolation:isolate}
-#lmap{height:min(58vh,440px);width:100%;background:var(--water)}
+#lmap{height:min(58vh,440px);width:100%;background:var(--water);touch-action:none;-webkit-touch-callout:none}
+html,body{overscroll-behavior:none}
 .leaflet-container{font-family:var(--body)}
 .linkrow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 2px}
 .linkrow a{font:500 12px var(--mono);padding:7px 11px;border:1px solid var(--line);border-radius:99px;color:var(--ink);text-decoration:none;background:var(--card)}
