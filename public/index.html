@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Provenance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800;1,6..96,400..800&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: one-screen app. Header, scrolling view, bottom tabs. Figures are collected as perforated stamps with engraved rosettes; the map is a survey chart. */
+  --bg:#e7ecef; --card:#f8f9f7; --ink:#101a2e; --muted:#59657a; --line:#c3ccd5;
+  --water:#d9e4ea; --land:#f3f5f2;
+  --sea:#25586b; --moss:#3e6a4e; --seal:#9b1c1c;
+  --display:'Bodoni Moda','Didot',Georgia,serif;
+  --body:'Public Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1424; --card:#15213a; --ink:#e9edf4; --muted:#93a0b8; --line:#2a3856;
+    --water:#09101d; --land:#17233e;
+    --sea:#74b4c8; --moss:#86c19a; --seal:#e8786a;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1424; --card:#15213a; --ink:#e9edf4; --muted:#93a0b8; --line:#2a3856;
+  --water:#09101d; --land:#17233e;
+  --sea:#74b4c8; --moss:#86c19a; --seal:#e8786a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+#app{max-width:560px;height:100%;margin:0 auto;display:flex;flex-direction:column}
+header{padding:max(14px,env(safe-area-inset-top)) 16px 10px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.brand{font:italic 700 28px/1 var(--display);letter-spacing:-.01em;margin:0}
+.loc{font:400 11px/1.3 var(--mono);color:var(--muted);margin-top:5px}
+.count{font:500 12px var(--mono);color:var(--muted);text-align:right;white-space:nowrap}
+.count b{font-size:18px;color:var(--ink);font-weight:500}
+main{flex:1;overflow-y:auto;padding:0 16px 24px;-webkit-overflow-scrolling:touch}
+nav{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:none;border:0;padding:13px 4px 11px;font:500 13px var(--body);color:var(--muted);cursor:pointer;border-top:2px solid transparent;margin-top:-1px}
+nav button[aria-current="page"]{color:var(--ink);border-top-color:var(--seal)}
+h2{font:600 22px/1.2 var(--display);margin:0 0 4px;text-wrap:balance}
+h3{font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+p{margin:0 0 10px}
+.muted{color:var(--muted)}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.04em;color:var(--muted);margin-bottom:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:10px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
+.chip{flex:none;font:500 12px var(--mono);padding:6px 11px;border:1px solid var(--line);background:var(--card);border-radius:99px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.mapwrap{border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:12px}
+.btn{display:block;width:100%;font:600 14px var(--body);padding:12px 14px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:var(--card);cursor:pointer;margin-top:8px}
+.btn.alt{background:transparent;color:var(--ink)}
+.btn.seal{background:var(--seal);border-color:var(--seal);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+button:focus-visible,.stamp:focus-visible{outline:2px solid var(--sea);outline-offset:2px}
+.near{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 0;background:none;border:0;border-top:1px solid var(--line);cursor:pointer}
+.near:first-of-type{border-top:0}
+.near span:last-child{font:400 12px var(--mono);color:var(--muted);white-space:nowrap}
+.hint{font-style:italic;color:var(--muted)}
+.note{border-left:3px solid var(--seal);padding:4px 0 4px 10px;margin:10px 0;color:var(--muted);font-size:13px}
+.row{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.tier{font:500 11px var(--mono);letter-spacing:.05em;text-transform:uppercase}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin:2px 0 10px}
+.bar i{display:block;height:100%;background:var(--seal)}
+.setrow{display:flex;justify-content:space-between;align-items:baseline}
+.setrow span:last-child{font:400 12px var(--mono);color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stamp{position:relative;background:var(--card);border:5px dotted var(--bg);padding:8px 4px 8px;text-align:center;cursor:pointer;min-width:0;border-radius:2px;box-shadow:0 0 0 1px var(--line)}
+.stamp.locked{opacity:.65}
+.stamp svg{display:block;margin:0 auto 4px}
+.sn{font:600 12px/1.2 var(--display);min-height:2.4em;display:flex;align-items:center;justify-content:center}
+.sy{font:400 10px var(--mono);color:var(--muted);margin-top:2px}
+.copies{position:absolute;top:2px;right:4px;font:500 11px var(--mono);color:var(--seal)}
+.sheet{position:fixed;inset:0;background:rgba(6,12,24,.6);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet>div{background:var(--card);width:100%;max-width:560px;max-height:90%;overflow:auto;border-radius:14px 14px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+.opt{display:block;width:100%;text-align:left;padding:12px;margin-top:8px;border:1px solid var(--line);background:var(--bg);border-radius:6px;cursor:pointer;font-weight:500}
+.opt.bad{border-color:var(--seal);color:var(--seal)}
+.chipsm{display:inline-block;font:500 12px var(--mono);border:1px solid var(--line);border-radius:99px;padding:3px 10px;margin:0 6px 6px 0}
+.swap{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:8px 0;font-size:13px}
+.swap div{border:1px dashed var(--line);border-radius:4px;padding:8px}
+.swap b{display:block;font:600 14px var(--display)}
+.stampbig{display:flex;flex-direction:column;align-items:center;gap:8px;margin:6px 0 10px}
+.stampbig .stamp{width:150px;cursor:default}
+.postmark{font:500 11px/1.3 var(--mono);color:var(--seal);border:2px solid var(--seal);border-radius:4px;padding:5px 9px;text-align:center;letter-spacing:.04em;transform:rotate(-3deg)}
+.pulse{transform-box:fill-box;transform-origin:center}
+@media (prefers-reduced-motion: no-preference){
+  .pulse{animation:pulse 1.8s ease-out infinite}
+  .thunk{animation:thunk .5s cubic-bezier(.2,.9,.3,1.2) both}
+}
+@keyframes pulse{from{transform:scale(1);opacity:.8}to{transform:scale(2.8);opacity:0}}
+@keyframes thunk{0%{transform:scale(1.6) rotate(-9deg);opacity:0}100%{transform:scale(1) rotate(-3deg);opacity:1}}
+</style>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"></head>
+<body>
+<div id="app"></div>
+<script>
+/* ---------- Data ---------- */
+const TIER={common:{label:'Common',c:'var(--sea)'},uncommon:{label:'Uncommon',c:'var(--moss)'},rare:{label:'Rare',c:'var(--seal)'}};
+const SETS={founding:'Founding Era',presidents:'Presidents',civilwar:'Civil War',freedom:'Freedom & Civil Rights',women:'Women Who Shaped America',frontier:'Frontier & Exploration',native:'Native Nations',makers:'Makers & Pioneers',letters:'Arts & Letters',sports:'Sports'};
+
+const FIGS=[
+{id:'washington',name:'George Washington',years:'1732–1799',role:'Commander of the Continental Army, first President',tier:'common',sets:['founding','presidents'],
+ bio:`Commanded the Continental Army through the American Revolution, then presided over the 1787 Constitutional Convention. Elected the first president in 1789, he stepped down after two terms.`,
+ q:`Which 1787 gathering did Washington preside over?`,o:['The Constitutional Convention','The First Continental Congress','The Treaty of Paris talks'],
+ deep:`His army wintered at Valley Forge in 1777–78, where Baron von Steuben drilled the troops into a sharper force. In 1797 he left office voluntarily, setting a precedent that held for over a century.`},
+{id:'franklin',name:'Benjamin Franklin',years:'1706–1790',role:'Printer, scientist and diplomat',tier:'common',sets:['founding','makers'],
+ bio:`Printer, scientist, writer and diplomat who rose from a Boston candlemaker's family to help found a nation. He negotiated the French alliance that helped win the Revolution.`,
+ q:`Franklin signed the Declaration of Independence and which other founding document?`,o:['The U.S. Constitution','The Emancipation Proclamation','The Monroe Doctrine'],
+ deep:`In 1731 he helped found the Library Company of Philadelphia, one of America's first subscription libraries. He is also the only founder to sign the Declaration, the Treaty of Paris and the Constitution.`},
+{id:'jefferson',name:'Thomas Jefferson',years:'1743–1826',role:'Third President, author of the Declaration',tier:'common',sets:['founding','presidents'],
+ bio:`Principal author of the Declaration of Independence and the third president. He roughly doubled the size of the country with the Louisiana Purchase in 1803.`,
+ q:`What did the 1803 Louisiana Purchase do?`,o:['Roughly doubled U.S. territory','Ended the War of 1812','Created the Bill of Rights'],
+ deep:`He founded the University of Virginia in 1819. His chosen epitaph lists the Declaration, the Virginia Statute for Religious Freedom and the university, and leaves out the presidency.`},
+{id:'revere',name:'Paul Revere',years:'1735–1818',role:'Silversmith and patriot messenger',tier:'uncommon',sets:['founding'],
+ bio:`A Boston silversmith and engraver who joined the patriot cause. On the night of April 18, 1775, he rode to warn that British troops were moving toward Lexington and Concord. Lanterns in the Old North Church steeple signaled which route they would take.`,
+ q:`Two lanterns in the Old North Church steeple signaled that the British were coming by what route?`,o:['By sea','By land','They were not coming'],
+ deep:`He was one of several riders that night, and a British patrol detained him near Lexington before he reached Concord. His engraving of the Boston Massacre was widely circulated.`},
+{id:'lincoln',name:'Abraham Lincoln',years:'1809–1865',role:'16th President of the United States',tier:'common',sets:['presidents','civilwar','freedom'],
+ bio:`Born in a Kentucky log cabin, Lincoln taught himself law and rose to lead the Union through the Civil War. He issued the Emancipation Proclamation in 1863 and pressed for the Thirteenth Amendment.`,
+ q:`Lincoln's 1863 speech at Gettysburg dedicated what?`,o:['A national cemetery for Union soldiers','A new railroad line','The state capitol'],
+ deep:`Edward Everett spoke for about two hours before Lincoln rose, and the president's remarks ran only a few minutes. Everett wrote to him the next day that Lincoln had reached the heart of the occasion in far fewer words.`},
+{id:'chamberlain',name:'Joshua Chamberlain',years:'1828–1914',role:'Union officer, Medal of Honor recipient',tier:'rare',sets:['civilwar'],
+ bio:`A college professor of rhetoric who volunteered for the Union Army. On July 2, 1863, his 20th Maine held the far left of the Union line on Little Round Top, and he later received the Medal of Honor.`,
+ q:`Which regiment did Chamberlain command at Little Round Top?`,o:['20th Maine','54th Massachusetts','1st Minnesota'],
+ deep:`Before the war he taught at Bowdoin College. After it he served four terms as governor of Maine and later became president of Bowdoin.`},
+{id:'tubman',name:'Harriet Tubman',years:'c. 1822–1913',role:'Abolitionist and Underground Railroad conductor',tier:'rare',sets:['civilwar','freedom','women'],
+ bio:`Born into slavery in Maryland, she escaped in 1849 and returned repeatedly to guide others to freedom. During the Civil War she served the Union Army as a scout, nurse and spy.`,
+ q:`Tubman guided people to freedom along which network?`,o:['The Underground Railroad','The Pony Express','The Oregon Trail'],
+ deep:`In 1863 she helped lead the Combahee River Raid in South Carolina, which freed more than 700 people. Later she settled in Auburn, New York, and opened her home to the elderly.`},
+{id:'douglass',name:'Frederick Douglass',years:'1818–1895',role:'Abolitionist, writer and orator',tier:'rare',sets:['civilwar','freedom','letters'],
+ bio:`Escaped slavery in 1838 and became one of the most powerful orators and writers of his century. His 1845 autobiography made him famous and a leading voice for abolition.`,
+ q:`Which 1845 book did Douglass publish?`,o:['Narrative of the Life of Frederick Douglass','Uncle Tom\'s Cabin','Walden'],
+ deep:`He spoke in favor of women's suffrage at Seneca Falls in 1848. Later he served as U.S. Marshal for the District of Columbia and as minister to Haiti.`},
+{id:'stanton',name:'Elizabeth Cady Stanton',years:'1815–1902',role:'Women\'s rights leader',tier:'uncommon',sets:['women','freedom'],
+ bio:`Organizer of the 1848 Seneca Falls Convention, the first women's rights convention in the United States. She drafted its Declaration of Sentiments and campaigned for decades alongside Susan B. Anthony.`,
+ q:`Her 1848 declaration was modeled on which document?`,o:['The Declaration of Independence','The Magna Carta','The Federalist Papers'],
+ deep:`Her call for women's right to vote was the most contested resolution at the convention. It passed narrowly, helped by Frederick Douglass speaking in its favor.`},
+{id:'addams',name:'Jane Addams',years:'1860–1935',role:'Social reformer, Nobel Peace Prize laureate',tier:'rare',sets:['women'],
+ bio:`Co-founded Hull House in Chicago in 1889, a settlement house that gave immigrant neighbors classes, childcare and a place to gather. In 1931 she became the first American woman to win the Nobel Peace Prize.`,
+ q:`Which prize did Addams win in 1931?`,o:['The Nobel Peace Prize','The Pulitzer Prize','The Presidential Medal of Freedom'],
+ deep:`She founded Hull House with Ellen Gates Starr. Its residents documented neighborhood conditions and pushed for labor, housing and child-welfare reforms.`},
+{id:'parks',name:'Rosa Parks',years:'1913–2005',role:'Civil rights activist',tier:'rare',sets:['freedom','women'],
+ bio:`On December 1, 1955, Parks declined to give up her bus seat in Montgomery, Alabama, and was arrested. Her arrest helped spark a boycott, supported by a young Martin Luther King Jr., that lasted 381 days.`,
+ q:`How long did the Montgomery Bus Boycott last?`,o:['381 days','38 days','About three years'],
+ deep:`She was already secretary of the Montgomery NAACP chapter and had trained in nonviolent protest. Congress awarded her its Gold Medal in 1999.`},
+{id:'lazarus',name:'Emma Lazarus',years:'1849–1887',role:'Poet',tier:'rare',sets:['women','letters'],
+ bio:`A New York poet who wrote "The New Colossus" in 1883 to help raise money for the Statue of Liberty's pedestal. Her poem was later cast on a plaque inside the pedestal.`,
+ q:`What kind of work is "The New Colossus"?`,o:['A sonnet','A novel','A speech'],
+ deep:`She died in 1887, years before her poem was mounted on the pedestal in 1903. She had also written about the persecution of Jews in Europe and aided refugees arriving in New York.`},
+{id:'crockett',name:'Davy Crockett',years:'1786–1836',role:'Frontiersman and congressman',tier:'uncommon',sets:['frontier'],
+ bio:`A frontiersman, soldier and Tennessee congressman whose tall tales made him famous in his own lifetime. He joined the Texian defenders and died at the Alamo in March 1836.`,
+ q:`Crockett served in the U.S. Congress from which state?`,o:['Tennessee','Kentucky','Virginia'],
+ deep:`He served three terms in the U.S. House of Representatives. Almanacs and stage plays spread his legend while he was still alive.`},
+{id:'houston',name:'Sam Houston',years:'1793–1863',role:'General, president of the Republic of Texas',tier:'uncommon',sets:['frontier'],
+ bio:`Commanded the Texian army that won the Battle of San Jacinto on April 21, 1836, securing Texas independence from Mexico. He served as president of the Republic of Texas and later as a U.S. senator and governor.`,
+ q:`At which battle did Houston's army win Texas independence?`,o:['San Jacinto','The Alamo','Palo Alto'],
+ deep:`The fighting at San Jacinto lasted roughly eighteen minutes. He is the only person elected governor of both Tennessee and Texas.`},
+{id:'twain',name:'Mark Twain',years:'1835–1910',role:'Author and humorist',tier:'uncommon',sets:['letters'],
+ bio:`Samuel Clemens grew up in Hannibal, Missouri, then worked as a Mississippi riverboat pilot before becoming America's best-known humorist. His books include The Adventures of Tom Sawyer and Adventures of Huckleberry Finn.`,
+ q:`"Mark twain" was a riverboat call meaning what?`,o:['Two fathoms deep','Storm ahead','Dock in sight'],
+ deep:`Hannibal became the model for St. Petersburg, the town in Tom Sawyer. Riverboat crews called out depth soundings, and "mark twain" marked safe water of two fathoms.`},
+{id:'edison',name:'Thomas Edison',years:'1847–1931',role:'Inventor',tier:'common',sets:['makers'],
+ bio:`Inventor who built a research laboratory at Menlo Park, New Jersey, in the 1870s. His team developed a practical incandescent light bulb in 1879 and an electrical system to power it.`,
+ q:`Edison's Menlo Park team perfected a practical version of what in 1879?`,o:['The incandescent light bulb','The telephone','The steam locomotive'],
+ deep:`He held 1,093 U.S. patents. His Menlo Park lab is often described as an early industrial research laboratory, where teams worked on many projects at once.`},
+{id:'wrights',name:'Orville & Wilbur Wright',years:'1867–1912 · 1871–1948',role:'Aviation pioneers',tier:'uncommon',sets:['makers'],
+ bio:`Bicycle makers from Dayton, Ohio, who built and flew the first powered, controlled airplane. On December 17, 1903, near Kitty Hawk, North Carolina, Orville flew for 12 seconds.`,
+ q:`In which year did the Wright brothers make their first powered flights?`,o:['1903','1893','1913'],
+ deep:`That first flight covered about 120 feet. They made four flights that morning, and the longest, by Wilbur, lasted 59 seconds.`},
+{id:'armstrong',name:'Neil Armstrong',years:'1930–2012',role:'Astronaut, first person on the Moon',tier:'uncommon',sets:['makers'],
+ bio:`A naval aviator and test pilot who commanded Apollo 11. On July 20, 1969, he became the first person to walk on the Moon.`,
+ q:`Which mission carried Armstrong to the Moon?`,o:['Apollo 11','Gemini 8','Apollo 13'],
+ deep:`In 1966 he commanded Gemini 8, which performed the first docking of two spacecraft in orbit. Apollo 11 lifted off from Kennedy Space Center on July 16, 1969.`},
+{id:'mlk',name:'Martin Luther King Jr.',years:'1929–1968',role:'Baptist minister and civil rights leader',tier:'common',sets:['freedom'],
+ bio:`A Baptist minister who became the leading voice of the American civil rights movement and championed nonviolent protest. He helped lead the Montgomery Bus Boycott and delivered the "I Have a Dream" speech at the 1963 March on Washington.`,
+ q:`King delivered his "I Have a Dream" speech at which 1963 event?`,o:['The March on Washington','The Selma to Montgomery March','The Poor People\'s Campaign'],
+ deep:`He won the Nobel Peace Prize in 1964 at age 35, the youngest recipient to that point. He became pastor of Dexter Avenue Baptist Church in Montgomery in 1954.`},
+{id:'anthony',name:'Susan B. Anthony',years:'1820–1906',role:'Suffrage leader',tier:'uncommon',sets:['women','freedom'],
+ bio:`Organizer who campaigned for more than fifty years for women's right to vote, working closely with Elizabeth Cady Stanton. She was arrested in 1872 for casting a ballot in Rochester, New York.`,
+ q:`Why was Anthony arrested in 1872?`,o:['She voted in a presidential election','She published a banned newspaper','She spoke without a permit'],
+ deep:`She and Stanton founded the National Woman Suffrage Association in 1869. The Nineteenth Amendment, ratified in 1920, was nicknamed the "Susan B. Anthony Amendment."`},
+{id:'barton',name:'Clara Barton',years:'1821–1912',role:'Nurse and founder of the American Red Cross',tier:'rare',sets:['women','civilwar'],
+ bio:`A nurse who delivered supplies and care to soldiers on Civil War battlefields and became known as the "Angel of the Battlefield." She founded the American Red Cross in 1881.`,
+ q:`Which organization did Barton found in 1881?`,o:['The American Red Cross','The Salvation Army','The Girl Scouts'],
+ deep:`She led the Red Cross for 23 years. After the war she also ran an office that searched for missing soldiers and helped families learn their fates.`},
+{id:'grant',name:'Ulysses S. Grant',years:'1822–1885',role:'Union general and 18th President',tier:'common',sets:['presidents','civilwar'],
+ bio:`Union general who led the Union armies to victory in the Civil War, then served as the 18th president from 1869 to 1877.`,
+ q:`Which Confederate general surrendered to Grant in April 1865?`,o:['Robert E. Lee','Stonewall Jackson','Jefferson Davis'],
+ deep:`His capture of Vicksburg on July 4, 1863, split the Confederacy in two. As president he backed the Fifteenth Amendment, ratified in 1870, which barred denying the vote on the basis of race.`},
+{id:'troosevelt',name:'Theodore Roosevelt',years:'1858–1919',role:'26th President and conservationist',tier:'common',sets:['presidents'],
+ bio:`The 26th president, who protected about 230 million acres of public land. He took office in 1901 and won the Nobel Peace Prize in 1906 for mediating the end of the Russo-Japanese War.`,
+ q:`Which huge construction project did Roosevelt's administration push forward?`,o:['The Panama Canal','The Erie Canal','The Suez Canal'],
+ deep:`He led the Rough Riders in Cuba in 1898. In 1906 he became the first sitting president to travel abroad, visiting Panama to see the canal work.`},
+{id:'froosevelt',name:'Franklin D. Roosevelt',years:'1882–1945',role:'32nd President',tier:'common',sets:['presidents'],
+ bio:`The 32nd president, elected four times, who led the nation through the Great Depression and most of World War II. His New Deal created programs such as Social Security.`,
+ q:`The New Deal was a response to which crisis?`,o:['The Great Depression','The Spanish-American War','The Panic of 1837'],
+ deep:`He used radio "fireside chats" to speak directly to Americans. He remains the only president elected to four terms.`},
+{id:'jfk',name:'John F. Kennedy',years:'1917–1963',role:'35th President',tier:'common',sets:['presidents','makers'],
+ bio:`The 35th president and the youngest person elected to the office. He led during the Cuban Missile Crisis and committed the nation to landing a person on the Moon.`,
+ q:`In 1962, Kennedy set which goal for the decade?`,o:['Landing a person on the Moon','Ending the Cold War','Building the interstate highways'],
+ deep:`In World War II he commanded the Navy patrol boat PT-109. His book Profiles in Courage won the Pulitzer Prize in 1957.`},
+{id:'carver',name:'George Washington Carver',years:'c. 1864–1943',role:'Agricultural scientist and teacher',tier:'rare',sets:['makers','freedom'],
+ bio:`Born into slavery in Missouri, he became a leading agricultural scientist and teacher. At Tuskegee Institute he taught farmers crop rotation and uses for peanuts and sweet potatoes.`,
+ q:`Carver urged farmers to move beyond which soil-depleting crop?`,o:['Cotton','Wheat','Corn'],
+ deep:`He taught at Tuskegee from 1896 until his death in 1943. His bulletins gave Southern farmers low-cost ways to restore worn-out soil.`},
+{id:'earhart',name:'Amelia Earhart',years:'1897–1937',role:'Aviator',tier:'uncommon',sets:['women','makers'],
+ bio:`Aviator who became the first woman to fly solo nonstop across the Atlantic in 1932. She set many records and became a champion of women in aviation.`,
+ q:`What did Earhart become the first woman to do in 1932?`,o:['Fly solo nonstop across the Atlantic','Fly around the world','Reach the South Pole'],
+ deep:`She flew from Harbour Grace, Newfoundland, to a pasture in Northern Ireland in under 15 hours. She was also the first president of the Ninety-Nines, an organization of women pilots.`},
+{id:'sacagawea',name:'Sacagawea',years:'c. 1788–c. 1812',role:'Interpreter and guide, Lewis and Clark expedition',tier:'rare',sets:['native','frontier','women'],
+ bio:`A Lemhi Shoshone woman who joined the Lewis and Clark expedition in 1805 as an interpreter and guide, traveling with her infant son. Her presence helped show Native nations the party came in peace.`,
+ q:`What role did Sacagawea play on the Lewis and Clark expedition?`,o:['Interpreter and guide','Ship pilot','Army surgeon'],
+ deep:`Her brother Cameahwait was a chief of the Lemhi Shoshone, and his people supplied the horses the expedition needed to cross the Rockies. Historians still debate the date of her death.`},
+{id:'lewisclark',name:'Lewis & Clark',years:'1774–1809 · 1770–1838',role:'Leaders of the Corps of Discovery',tier:'uncommon',sets:['frontier','makers'],
+ bio:`Meriwether Lewis and William Clark led the Corps of Discovery from 1804 to 1806, mapping the Louisiana Purchase and a route to the Pacific.`,
+ q:`Which president sent Lewis and Clark west?`,o:['Thomas Jefferson','George Washington','John Adams'],
+ deep:`Lewis had served as Jefferson's private secretary. Clark was the younger brother of Revolutionary War hero George Rogers Clark.`},
+{id:'sittingbull',name:'Sitting Bull',years:'c. 1831–1890',role:'Hunkpapa Lakota leader',tier:'rare',sets:['native','frontier'],
+ bio:`A Hunkpapa Lakota leader and spiritual figure who resisted U.S. efforts to take Lakota lands on the Great Plains. In June 1876 he was a respected leader among the Lakota and Cheyenne camped along the Little Bighorn River.`,
+ q:`Sitting Bull was a leader of which people?`,o:['The Hunkpapa Lakota','The Cherokee','The Navajo'],
+ deep:`In 1885 he spent a season touring with Buffalo Bill's Wild West show. He remained a leading voice for his people's rights to their land.`},
+{id:'thorpe',name:'Jim Thorpe',years:'1887–1953',role:'Olympic champion and multi-sport athlete',tier:'rare',sets:['native','sports'],
+ bio:`A Sac and Fox athlete who won gold in the pentathlon and decathlon at the 1912 Olympics. He later played professional football and baseball.`,
+ q:`In which city did Thorpe win his 1912 Olympic gold medals?`,o:['Stockholm','Antwerp','Paris'],
+ deep:`The International Olympic Committee stripped his medals in 1913 over his earlier amateur status and restored him as sole champion in 2022. In 1920 he became the first president of the American Professional Football Association, the NFL's predecessor.`},
+{id:'robinson',name:'Jackie Robinson',years:'1919–1972',role:'Baseball pioneer',tier:'uncommon',sets:['freedom','sports'],
+ bio:`Infielder who broke Major League Baseball's color barrier when he debuted for the Brooklyn Dodgers on April 15, 1947. He was named Rookie of the Year that season and later entered the Hall of Fame.`,
+ q:`In which year did Robinson debut for the Brooklyn Dodgers?`,o:['1947','1939','1955'],
+ deep:`He earned letters in four sports at UCLA and served as an Army lieutenant. In 1997 Major League Baseball retired his number 42 across all teams.`},
+{id:'whitman',name:'Walt Whitman',years:'1819–1892',role:'Poet',tier:'uncommon',sets:['letters','civilwar'],
+ bio:`Poet who celebrated ordinary Americans in free verse. He first published Leaves of Grass in 1855 and revised it for the rest of his life.`,
+ q:`Which collection did Whitman first publish in 1855?`,o:['Leaves of Grass','Walden','The Song of Hiawatha'],
+ deep:`He worked as a volunteer nurse in Washington's Civil War hospitals. He spent his last years in Camden, New Jersey.`},
+{id:'dickinson',name:'Emily Dickinson',years:'1830–1886',role:'Poet',tier:'uncommon',sets:['letters','women'],
+ bio:`Poet who spent most of her life in Amherst, Massachusetts, and wrote nearly 1,800 poems. Only a handful were published while she lived; most were discovered after her death.`,
+ q:`What did Dickinson do with many of her poems?`,o:['She sewed them into small handmade booklets','She burned them each winter','She mailed them to newspapers weekly'],
+ deep:`Her sister Lavinia found the poems in a locked chest after Emily's death in 1886. The first collection appeared in 1890.`},
+{id:'poe',name:'Edgar Allan Poe',years:'1809–1849',role:'Writer and critic',tier:'uncommon',sets:['letters'],
+ bio:`Writer and critic known for tales of mystery and the macabre. His poem "The Raven" appeared in 1845 and made him famous.`,
+ q:`Which 1845 poem made Poe famous?`,o:['The Raven','Paul Revere\'s Ride','Evangeline'],
+ deep:`He is often credited with helping invent the detective story with "The Murders in the Rue Morgue" in 1841.`},
+{id:'louisarmstrong',name:'Louis Armstrong',years:'1901–1971',role:'Trumpeter and singer',tier:'uncommon',sets:['letters'],
+ bio:`Trumpeter and singer from New Orleans who helped shape jazz and made the improvised solo central to the music. He led the landmark Hot Five and Hot Seven recordings in the 1920s.`,
+ q:`Armstrong grew up in which city, widely called the birthplace of jazz?`,o:['New Orleans','Memphis','Kansas City'],
+ deep:`He learned the cornet at a New Orleans home for boys as a teenager. His 1964 recording of "Hello, Dolly!" reached number one on the pop chart.`},
+{id:'hamilton',name:'Alexander Hamilton',years:'c. 1755–1804',role:'First Secretary of the Treasury',tier:'uncommon',sets:['founding'],
+ bio:`Born in the Caribbean, he served as Washington's aide during the Revolution and became the first Secretary of the Treasury. He wrote most of the Federalist Papers with James Madison and John Jay.`,
+ q:`Which cabinet post did Hamilton hold under Washington?`,o:['Secretary of the Treasury','Secretary of State','Secretary of War'],
+ deep:`He founded the Bank of New York in 1784 and the New York Post in 1801.`},
+{id:'madison',name:'James Madison',years:'1751–1836',role:'4th President, "Father of the Constitution"',tier:'uncommon',sets:['founding','presidents'],
+ bio:`The fourth president and the chief architect of the Constitution, often called its father. He drafted the Bill of Rights and led the country during the War of 1812.`,
+ q:`Madison is often called the "Father" of what?`,o:['The Constitution','The Declaration of Independence','The Louisiana Purchase'],
+ deep:`His detailed notes on the 1787 Convention are the best record of its debates. He also co-wrote the Federalist Papers.`},
+{id:'jadams',name:'John Adams',years:'1735–1826',role:'2nd President',tier:'uncommon',sets:['founding','presidents'],
+ bio:`Boston lawyer who defended the British soldiers tried after the Boston Massacre, then helped lead the push for independence. He served as the first vice president and the second president.`,
+ q:`After the Boston Massacre, Adams defended which group in court?`,o:['British soldiers','Colonial militia','Hessian mercenaries'],
+ deep:`He and Thomas Jefferson both died on July 4, 1826, the fiftieth anniversary of the Declaration of Independence.`},
+{id:'aadams',name:'Abigail Adams',years:'1744–1818',role:'Writer and adviser',tier:'rare',sets:['founding','women'],
+ bio:`Writer and trusted adviser whose letters to John Adams give a vivid picture of the Revolution. In 1776 she urged him to "remember the ladies" in the new laws.`,
+ q:`What did Abigail Adams urge John Adams to do in 1776?`,o:['Remember the ladies in the new laws','Move the family to Paris','Take command of the army'],
+ deep:`She managed the family farm and finances while John served in Philadelphia and abroad. Their letters run to more than a thousand pages.`}
+];
+const FIG=Object.fromEntries(FIGS.map(f=>[f.id,f]));
+
+const SITES=[
+{id:'gettysburg',name:'Gettysburg Visitor Center',st:'PA',lat:39.8113,lon:-77.2257,fig:'lincoln',memorial:true,hint:`Just outside a cemetery where a two-minute speech was given in 1863.`},
+{id:'roundtop',name:'Little Round Top parking area',st:'PA',lat:39.7907,lon:-77.2352,fig:'chamberlain',memorial:true,hint:`A parking area below a hill that a professor held on July 2, 1863.`},
+{id:'lincolncottage',name:'Lincoln\'s Cottage',st:'DC',lat:38.9374,lon:-77.0120,fig:'lincoln',hint:`A hilltop cottage above the capital where a president escaped the summer heat during the war.`},
+{id:'springfield',name:'Lincoln Home',st:'IL',lat:39.7983,lon:-89.6465,fig:'lincoln',hint:`A frame house where a lawyer raised his family before leaving for Washington in 1861.`},
+{id:'indep',name:'Independence Hall',st:'PA',lat:39.9489,lon:-75.1500,fig:'franklin',hint:`Two founding documents were debated in this brick hall.`},
+{id:'mtvernon',name:'Mount Vernon',st:'VA',lat:38.7076,lon:-77.0861,fig:'washington',hint:`A Potomac River plantation, long the home of a general turned president.`},
+{id:'valleyforge',name:'Valley Forge',st:'PA',lat:40.0972,lon:-75.4380,fig:'washington',hint:`A brutal winter encampment where a ragged army learned to drill in 1777–78.`},
+{id:'monticello',name:'Monticello',st:'VA',lat:38.0086,lon:-78.4528,fig:'jefferson',hint:`A hilltop home he designed himself and kept redesigning for decades.`},
+{id:'reverehouse',name:'Paul Revere House',st:'MA',lat:42.3637,lon:-71.0536,fig:'revere',hint:`A wooden house from about 1680 in Boston's North End, home to a silversmith and his large family.`},
+{id:'oldnorth',name:'Old North Church',st:'MA',lat:42.3664,lon:-71.0545,fig:'revere',hint:`Two lanterns in this steeple sent a message on April 18, 1775.`},
+{id:'cedarhill',name:'Cedar Hill',st:'DC',lat:38.8629,lon:-76.9855,fig:'douglass',hint:`A hillside home above the capital, once owned by a famed orator and abolitionist.`},
+{id:'tubmanhome',name:'Harriet Tubman Home',st:'NY',lat:42.9158,lon:-76.5690,fig:'tubman',hint:`A home for the aged in upstate New York, founded by a former conductor of a secret railroad.`},
+{id:'seneca',name:'Women\'s Rights Park',st:'NY',lat:42.9106,lon:-76.7983,fig:'stanton',hint:`A chapel here hosted a convention in July 1848.`},
+{id:'hullhouse',name:'Hull-House',st:'IL',lat:41.8715,lon:-87.6478,fig:'addams',hint:`A settlement house that opened its doors to immigrant neighbors in 1889.`},
+{id:'parksmuseum',name:'Rosa Parks Museum',st:'AL',lat:32.3786,lon:-86.3081,fig:'parks',hint:`Near this corner in December 1955, a bus seat became a symbol.`},
+{id:'wardsisland',name:'Ward\'s Island',st:'NY',lat:40.7930,lon:-73.9260,fig:'lazarus',hint:`An island in the East River where a New York poet visited newly arrived refugees in 1881.`},
+{id:'alamo',name:'Alamo Plaza',st:'TX',lat:29.4260,lon:-98.4876,fig:'crockett',memorial:true,hint:`A busy plaza in front of a mission-turned-fortress where about 200 defenders held out for thirteen days in 1836.`},
+{id:'washbrazos',name:'Washington-on-the-Brazos',st:'TX',lat:30.3290,lon:-96.1520,fig:'houston',hint:`A small Texas town where delegates met in March 1836 and declared independence.`},
+{id:'hannibal',name:'Mark Twain Boyhood Home',st:'MO',lat:39.7089,lon:-91.3587,fig:'twain',hint:`A river town that became the model for St. Petersburg in a famous novel.`},
+{id:'menlo',name:'Menlo Park Memorial Tower',st:'NJ',lat:40.5583,lon:-74.3290,fig:'edison',hint:`A tower topped with a giant bulb marks an invention factory.`},
+{id:'kittyhawk',name:'Wright Brothers Memorial',st:'NC',lat:36.0143,lon:-75.6677,fig:'wrights',hint:`Sand dunes, strong wind and four short flights on a December morning in 1903.`},
+{id:'ksc',name:'Kennedy Space Center',st:'FL',lat:28.5729,lon:-80.6490,fig:'armstrong',hint:`Launch Complex 39A sent a Saturn V skyward on July 16, 1969.`},
+{id:'dexter',name:'Dexter Avenue Baptist Church',st:'AL',lat:32.3772,lon:-86.3014,fig:'mlk',hint:`A brick church a short walk from the Alabama capitol, where a young pastor arrived in 1954.`},
+{id:'lincolnmem',name:'Lincoln Memorial Reflecting Pool',st:'DC',lat:38.8893,lon:-77.0470,fig:'mlk',memorial:true,hint:`A long pool where a quarter of a million people gathered in August 1963.`},
+{id:'anthonyhouse',name:'Susan B. Anthony House',st:'NY',lat:43.1492,lon:-77.6281,fig:'anthony',hint:`A brick house on Madison Street where a federal marshal came calling in 1872.`},
+{id:'bartonhouse',name:'Clara Barton House',st:'MD',lat:38.9667,lon:-77.1377,fig:'barton',hint:`A Maryland house built to store relief supplies, later the home of its founder.`},
+{id:'appomattox',name:'Appomattox Court House',st:'VA',lat:37.3813,lon:-78.7972,fig:'grant',hint:`A quiet Virginia village where a war effectively ended in a parlor on April 9, 1865.`},
+{id:'galena',name:'Grant Home',st:'IL',lat:42.4188,lon:-90.4296,fig:'grant',hint:`A brick house on a hillside, a gift from grateful townspeople in 1865.`},
+{id:'sagamore',name:'Sagamore Hill',st:'NY',lat:40.8851,lon:-73.5025,fig:'troosevelt',hint:`A shingled hilltop house on Long Island that served as a Summer White House.`},
+{id:'springwood',name:'Springwood',st:'NY',lat:41.7676,lon:-73.9347,fig:'froosevelt',hint:`A Hudson Valley estate where a future four-term president was born.`},
+{id:'ricestadium',name:'Rice Stadium',st:'TX',lat:29.7166,lon:-95.4075,fig:'jfk',hint:`A college football stadium where a president set a goal for the decade in September 1962.`},
+{id:'tuskegee',name:'Tuskegee Institute',st:'AL',lat:32.4297,lon:-85.7077,fig:'carver',hint:`A campus founded in 1881 where a scientist taught farmers to restore tired soil.`},
+{id:'earhartbirth',name:'Amelia Earhart Birthplace',st:'KS',lat:39.5655,lon:-95.1220,fig:'earhart',hint:`A Gothic Revival house on a bluff above the Missouri River where a future pilot was born.`},
+{id:'fortmandan',name:'Fort Mandan',st:'ND',lat:47.2947,lon:-101.0275,fig:'sacagawea',hint:`A log stockade on the Missouri River where an expedition wintered in 1804–05 and gained a new member.`},
+{id:'fortclatsop',name:'Fort Clatsop',st:'OR',lat:46.1356,lon:-123.8756,fig:'lewisclark',hint:`A small log fort near the Pacific where an expedition waited out a rainy winter in 1805–06.`},
+{id:'fortbuford',name:'Fort Buford',st:'ND',lat:47.9903,lon:-104.0010,fig:'sittingbull',hint:`A frontier army post near the meeting of two rivers, where a long resistance ended in July 1881.`},
+{id:'carlisle',name:'Carlisle Barracks',st:'PA',lat:40.2043,lon:-77.1880,fig:'thorpe',hint:`A former army post that housed a boarding school for Native students from 1879 to 1918.`},
+{id:'daytona',name:'Jackie Robinson Ballpark',st:'FL',lat:29.2088,lon:-81.0176,fig:'robinson',hint:`A Florida ballpark where a minor leaguer played spring games in 1946, a year before a historic debut.`},
+{id:'whitmanhouse',name:'Walt Whitman House',st:'NJ',lat:39.9411,lon:-75.1204,fig:'whitman',hint:`A small frame house in Camden, the only home the poet ever owned.`},
+{id:'dickinsonhome',name:'Emily Dickinson Museum',st:'MA',lat:42.3750,lon:-72.5129,fig:'dickinson',hint:`A brick Homestead in a college town where a reclusive poet wrote at a small table.`},
+{id:'poehouse',name:'Edgar Allan Poe House',st:'PA',lat:39.9610,lon:-75.1504,fig:'poe',hint:`A modest brick house in Philadelphia where a writer lived in the early 1840s.`},
+{id:'louishouse',name:'Louis Armstrong House',st:'NY',lat:40.7498,lon:-73.8629,fig:'louisarmstrong',hint:`A modest brick house in Queens that still holds a famous musician's tape collection.`},
+{id:'hamiltongrange',name:'Hamilton Grange',st:'NY',lat:40.8211,lon:-73.9477,fig:'hamilton',hint:`A Federal-style country house in Harlem, the only home its owner ever built.`},
+{id:'montpelier',name:'Montpelier',st:'VA',lat:38.2202,lon:-78.1739,fig:'madison',hint:`A Virginia plantation where a small, soft-spoken man planned a new government.`},
+{id:'adamsbirth',name:'John Adams Birthplace',st:'MA',lat:42.2506,lon:-71.0107,fig:'jadams',hint:`A saltbox house in Quincy where a second president was born, steps from his son's birthplace.`},
+{id:'peacefield',name:'Peacefield',st:'MA',lat:42.2559,lon:-71.0114,fig:'aadams',hint:`A Quincy farmhouse home to four generations of one family.`},
+{id:'declarationhouse',name:'Declaration House',st:'PA',lat:39.9510,lon:-75.1536,fig:'jefferson',hint:`A rented second-floor room where a draft was written in June 1776.`},
+{id:'uva',name:'University of Virginia Rotunda',st:'VA',lat:38.0356,lon:-78.5033,fig:'jefferson',hint:`A domed library at the head of a lawn, designed by the founder himself.`},
+{id:'franklincourt',name:'Franklin Court',st:'PA',lat:39.9475,lon:-75.1480,fig:'franklin',hint:`A courtyard where a steel frame marks the outline of a vanished house.`},
+{id:'washcrossing',name:'Washington Crossing',st:'PA',lat:40.2960,lon:-74.8750,fig:'washington',hint:`A river crossing on a freezing Christmas night in 1776.`},
+{id:'bowdoin',name:'Bowdoin College',st:'ME',lat:43.9075,lon:-69.9628,fig:'chamberlain',hint:`A Maine college campus where a professor of rhetoric asked leave to join the army.`},
+{id:'twainhouse',name:'Mark Twain House',st:'CT',lat:41.7670,lon:-72.7011,fig:'twain',hint:`A Victorian Gothic mansion in Hartford where an author entertained and wrote.`},
+{id:'edisonfm',name:'Edison and Ford Winter Estates',st:'FL',lat:26.6040,lon:-81.8820,fig:'edison',hint:`A Florida riverfront estate with a laboratory where an inventor tested plants for rubber.`},
+{id:'wapakoneta',name:'Wapakoneta',st:'OH',lat:40.5683,lon:-84.1999,fig:'armstrong',hint:`A small Ohio town with a dome-shaped museum honoring a hometown pilot.`},
+{id:'houstonhome',name:'Sam Houston Memorial Museum',st:'TX',lat:30.7160,lon:-95.5500,fig:'houston',hint:`A Piney Woods town where a statesman kept a home called Woodland.`},
+{id:'fraunces',name:'Fraunces Tavern',st:'NY',lat:40.7033,lon:-74.0113,fig:'washington',hint:`A tavern in lower Manhattan where a general said goodbye to his officers in 1783.`},
+{id:'federalhall',name:'Federal Hall',st:'NY',lat:40.7074,lon:-74.0102,fig:'washington',hint:`A columned building on Wall Street, on the site of an oath taken in April 1789.`},
+{id:'craigie',name:'Longfellow House, Washington\'s Headquarters',st:'MA',lat:42.3768,lon:-71.1261,fig:'washington',hint:`A yellow mansion in Cambridge that served as a general's headquarters during the siege of Boston.`},
+{id:'oldsouth',name:'Old South Meeting House',st:'MA',lat:42.3569,lon:-71.0588,fig:'franklin',hint:`A brick meetinghouse in Boston where a baby was baptized on the day he was born in 1706.`},
+{id:'wm',name:'College of William & Mary',st:'VA',lat:37.2708,lon:-76.7094,fig:'jefferson',hint:`A colonial college in Williamsburg where a young Virginian studied law and science.`},
+{id:'poplar',name:'Poplar Forest',st:'VA',lat:37.3417,lon:-79.2678,fig:'jefferson',hint:`An octagonal house in Bedford County where its designer went to read and think.`},
+{id:'hancockclarke',name:'Hancock-Clarke House',st:'MA',lat:42.4466,lon:-71.2259,fig:'revere',hint:`A parsonage in Lexington where two patriot leaders were awakened near midnight in April 1775.`},
+{id:'newsalem',name:'Lincoln\'s New Salem',st:'IL',lat:40.0222,lon:-89.8467,fig:'lincoln',hint:`A reconstructed village where a young man worked as a clerk and studied law.`},
+{id:'knobcreek',name:'Knob Creek Farm',st:'KY',lat:37.5083,lon:-85.7102,fig:'lincoln',hint:`A Kentucky creek-bottom farm where a toddler learned to walk and a boy first went to school.`},
+{id:'cooperunion',name:'Cooper Union',st:'NY',lat:40.7295,lon:-73.991,fig:'lincoln',hint:`A downtown college hall where a tall Illinois lawyer spoke to a packed room in February 1860.`},
+{id:'chamberlainhouse',name:'Joshua Chamberlain Museum',st:'ME',lat:43.912,lon:-69.9654,fig:'chamberlain',hint:`A Maine house that its owner once jacked up to add a new ground floor.`},
+{id:'tubmanmd',name:'Harriet Tubman Underground Railroad Visitor Center',st:'MD',lat:38.44,lon:-76.129,fig:'tubman',hint:`A Maryland marsh landscape where a young woman learned to read the land.`},
+{id:'capemay',name:'Cape May',st:'NJ',lat:38.9352,lon:-74.9058,fig:'tubman',hint:`A Victorian seaside town where a hotel cook saved her wages for dangerous journeys.`},
+{id:'beaufort',name:'Beaufort Waterfront',st:'SC',lat:32.4312,lon:-80.6713,fig:'tubman',hint:`A Lowcountry waterfront town that served as a Union base in the Sea Islands.`},
+{id:'fellspoint',name:'Fells Point',st:'MD',lat:39.2829,lon:-76.5937,fig:'douglass',hint:`A cobbled waterfront in Baltimore where a young caulker planned his escape.`},
+{id:'newbedford',name:'Nathan and Polly Johnson House',st:'MA',lat:41.6366,lon:-70.925,fig:'douglass',hint:`A modest house in a whaling port that welcomed a fugitive in September 1838.`},
+{id:'northstar',name:'The North Star Newspaper Office',st:'NY',lat:43.1558,lon:-77.6072,fig:'douglass',hint:`A downtown Rochester block where a newspaper was printed in the late 1840s.`},
+{id:'stantonjohnstown',name:'Johnstown',st:'NY',lat:43.0047,lon:-74.3704,fig:'stanton',hint:`A small Mohawk Valley city where a judge's daughter was born in 1815.`},
+{id:'hunthouse',name:'Hunt House',st:'NY',lat:42.904,lon:-76.857,fig:'stanton',hint:`A Waterloo parlor where five women planned a convention over tea in July 1848.`},
+{id:'tenafly',name:'Tenafly',st:'NJ',lat:40.9245,lon:-73.9626,fig:'stanton',hint:`A New Jersey town where a famed organizer raised her children and wrote speeches.`},
+{id:'cedarville',name:'Jane Addams Birthplace',st:'IL',lat:42.3744,lon:-89.6377,fig:'addams',hint:`A northern Illinois village where a miller's daughter was born in 1860.`},
+{id:'rockford',name:'Rockford University',st:'IL',lat:42.286,lon:-89.062,fig:'addams',hint:`A seminary campus where a valedictorian began planning a life of service.`},
+{id:'emerson',name:'Ralph Waldo Emerson House',st:'MA',lat:42.4577,lon:-71.3411,fig:'lazarus',hint:`A white house in Concord where a young poet visited her mentor.`},
+{id:'crockettbirth',name:'Davy Crockett Birthplace State Park',st:'TN',lat:36.1735,lon:-82.6828,fig:'crockett',hint:`A rolling east Tennessee park near a river where a frontiersman was born.`},
+{id:'crocketttavern',name:'Crockett Tavern Museum',st:'TN',lat:36.2139,lon:-83.295,fig:'crockett',hint:`A log tavern in Morristown that recalls a boyhood spent serving travelers.`},
+{id:'uscapitol',name:'U.S. Capitol (East Front plaza)',st:'DC',lat:38.8899,lon:-77.0091,fig:'crockett',hint:`A domed building on a hill where a backwoodsman became a congressman.`},
+{id:'tncapitol',name:'Tennessee State Capitol',st:'TN',lat:36.1666,lon:-86.7843,fig:'houston',hint:`A hilltop capitol in Nashville where a governor once served his state.`},
+{id:'virginiacity',name:'Virginia City',st:'NV',lat:39.31,lon:-119.649,fig:'twain',hint:`A silver-boom mountain town where a reporter signed a new name in 1863.`},
+{id:'angelscamp',name:'Angels Camp',st:'CA',lat:38.068,lon:-120.539,fig:'twain',hint:`A gold-country town where a story about a frog was swapped in a hotel bar in 1865.`},
+{id:'elmira',name:'Quarry Farm',st:'NY',lat:42.101,lon:-76.814,fig:'twain',hint:`A hilltop farm above a New York city where an author wrote summer after summer.`},
+{id:'milan',name:'Edison Birthplace',st:'OH',lat:41.2967,lon:-82.602,fig:'edison',hint:`A small brick house in a former canal town where an inventor was born.`},
+{id:'westorange',name:'Thomas Edison National Historical Park',st:'NJ',lat:40.7843,lon:-74.2371,fig:'edison',hint:`A sprawling lab complex where thousands of experiments ran in the 1890s.`},
+{id:'greenfield',name:'Henry Ford Museum and Greenfield Village',st:'MI',lat:42.3037,lon:-83.234,fig:'edison',hint:`A Michigan village that rebuilt an inventor's lab and held a grand jubilee in 1929.`},
+{id:'huffman',name:'Huffman Prairie Flying Field',st:'OH',lat:39.8156,lon:-84.0485,fig:'wrights',hint:`A cow pasture outside Dayton where an airplane learned to turn and circle.`},
+{id:'collegepark',name:'College Park Airport',st:'MD',lat:38.9783,lon:-76.9225,fig:'wrights',hint:`A Maryland airfield where the military's first pilots learned to fly in 1909.`},
+{id:'purdue',name:'Purdue University',st:'IN',lat:40.4237,lon:-86.9212,fig:'armstrong',hint:`A Midwest campus where a future astronaut studied aeronautical engineering.`},
+{id:'jsc',name:'Space Center Houston',st:'TX',lat:29.5517,lon:-95.0974,fig:'armstrong',hint:`A Houston space campus whose control room guided an Apollo landing.`},
+{id:'mlkbirth',name:'MLK Birth Home',st:'GA',lat:33.7549,lon:-84.373,fig:'mlk',hint:`A Queen Anne house on Auburn Avenue where a baby was born in January 1929.`},
+{id:'morehouse',name:'Morehouse College',st:'GA',lat:33.746,lon:-84.413,fig:'mlk',hint:`A historically Black college in Atlanta where a preacher's son studied sociology.`},
+{id:'bu',name:'Boston University',st:'MA',lat:42.3505,lon:-71.1054,fig:'mlk',hint:`A Boston campus where a Southern minister completed a doctorate in 1955.`},
+{id:'anthonybirth',name:'Susan B. Anthony Birthplace',st:'MA',lat:42.624,lon:-73.118,fig:'anthony',hint:`A Berkshire town where a Quaker family's daughter was born in 1820.`},
+{id:'canandaigua',name:'Ontario County Courthouse',st:'NY',lat:42.889,lon:-77.281,fig:'anthony',hint:`A Finger Lakes courthouse where a defendant stood trial for voting in 1873.`},
+{id:'bartonbirth',name:'Clara Barton Birthplace',st:'MA',lat:42.157,lon:-71.873,fig:'barton',hint:`A farmhouse in central Massachusetts where the youngest of five children was born in 1821.`},
+{id:'johnstown',name:'Johnstown Flood Museum',st:'PA',lat:40.3267,lon:-78.922,fig:'barton',hint:`A Pennsylvania mill city where relief workers set up shelters in 1889.`},
+{id:'galveston',name:'Galveston Strand',st:'TX',lat:29.3092,lon:-94.79,fig:'barton',hint:`A Gulf island city that rebuilt after a great storm in September 1900.`},
+{id:'dansville',name:'Dansville',st:'NY',lat:42.5604,lon:-77.6958,fig:'barton',hint:`A small western New York village that formed the first Red Cross chapter in 1881.`},
+{id:'westpoint',name:'West Point Visitor Center',st:'NY',lat:41.3912,lon:-73.954,fig:'grant',hint:`A Hudson River academy where a quiet cadet from Ohio graduated in 1843.`},
+{id:'grantbirth',name:'Grant Birthplace',st:'OH',lat:39.016,lon:-84.231,fig:'grant',hint:`A small cottage on the Ohio River where a general was born in 1822.`},
+{id:'whitehaven',name:'White Haven',st:'MO',lat:38.555,lon:-90.377,fig:'grant',hint:`A Missouri farmstead where a struggling farmer sold firewood in the 1850s.`},
+{id:'trbirth',name:'Theodore Roosevelt Birthplace',st:'NY',lat:40.7388,lon:-73.989,fig:'troosevelt',hint:`A Gramercy Park brownstone where a future president was born in October 1858.`},
+{id:'yellowstone',name:'Roosevelt Arch',st:'MT',lat:45.03,lon:-110.708,fig:'troosevelt',hint:`A stone gateway at a park entrance where a president laid a cornerstone in 1903.`},
+{id:'grandcanyon',name:'Grand Canyon Village',st:'AZ',lat:36.056,lon:-112.139,fig:'troosevelt',hint:`A South Rim village where a president urged people to leave the view as it was.`},
+{id:'glacierpoint',name:'Glacier Point',st:'CA',lat:37.7305,lon:-119.574,fig:'troosevelt',hint:`A granite overlook where a president and a naturalist camped in 1903.`},
+{id:'warmsprings',name:'Little White House',st:'GA',lat:32.8808,lon:-84.6866,fig:'froosevelt',hint:`A Georgia cottage in the pines where a president spent time away from Washington.`},
+{id:'hooverdam',name:'Hoover Dam',st:'NV',lat:36.0161,lon:-114.7377,fig:'froosevelt',hint:`A concrete wall across the Colorado River dedicated in September 1935.`},
+{id:'jfkbirth',name:'JFK Birthplace',st:'MA',lat:42.3425,lon:-71.1227,fig:'jfk',hint:`A Brookline house where a future president was born on May 29, 1917.`},
+{id:'hyannis',name:'JFK Hyannis Museum',st:'MA',lat:41.653,lon:-70.282,fig:'jfk',hint:`A Cape Cod village where a presidential family spent its summers.`},
+{id:'coliseum',name:'Los Angeles Memorial Coliseum',st:'CA',lat:34.0141,lon:-118.2879,fig:'jfk',hint:`A stadium where a candidate spoke to an enormous crowd in July 1960.`},
+{id:'diamond',name:'George Washington Carver National Monument',st:'MO',lat:36.994,lon:-94.356,fig:'carver',hint:`A farm in southwest Missouri where a frail child studied plants.`},
+{id:'iowastate',name:'Iowa State University',st:'IA',lat:42.0267,lon:-93.6465,fig:'carver',hint:`A college in Ames where a student earned bachelor's and master's degrees in agriculture.`},
+{id:'longbeach',name:'Long Beach Airport',st:'CA',lat:33.8177,lon:-118.1516,fig:'earhart',hint:`A California airfield where a paying passenger decided to become a pilot.`},
+{id:'oakland',name:'Oakland Airport',st:'CA',lat:37.7213,lon:-122.2208,fig:'earhart',hint:`A Bay Area airfield where a long Pacific flight ended in January 1935.`},
+{id:'threeforks',name:'Missouri Headwaters State Park',st:'MT',lat:45.9267,lon:-111.5063,fig:'sacagawea',hint:`Three rivers meet here, in country that was her childhood home.`},
+{id:'pompeys',name:'Pompeys Pillar',st:'MT',lat:45.999,lon:-107.956,fig:'sacagawea',hint:`A sandstone butte on the Yellowstone River bearing a famous signature from July 1806.`},
+{id:'salmon',name:'Sacajawea Center',st:'ID',lat:45.17,lon:-113.89,fig:'sacagawea',hint:`A high Idaho valley where a young woman was reunited with her people in 1805.`},
+{id:'dubois',name:'Camp River Dubois',st:'IL',lat:38.833,lon:-90.107,fig:'lewisclark',hint:`A river camp across from the Mississippi where an expedition trained in winter.`},
+{id:'greatfalls',name:'Giant Springs',st:'MT',lat:47.534,lon:-111.25,fig:'lewisclark',hint:`A great spring near thundering falls where a party spent a punishing June in 1805.`},
+{id:'lemhipass',name:'Lemhi Pass',st:'MT',lat:44.974,lon:-113.444,fig:'lewisclark',hint:`A high gap on the Continental Divide that a captain crossed in August 1805.`},
+{id:'capedisapp',name:'Cape Disappointment',st:'WA',lat:46.274,lon:-124.051,fig:'lewisclark',hint:`A rocky headland where the Columbia River meets the sea.`},
+{id:'fortyates',name:'Fort Yates',st:'ND',lat:46.087,lon:-100.629,fig:'sittingbull',hint:`An agency town on the Missouri River where a leader lived in the 1880s.`},
+{id:'fortrandall',name:'Fort Randall Historic Site',st:'SD',lat:43.064,lon:-98.54,fig:'sittingbull',hint:`A Missouri River fort where a leader's band spent two winters as prisoners.`},
+{id:'canton',name:'Pro Football Hall of Fame',st:'OH',lat:40.821,lon:-81.398,fig:'thorpe',hint:`An Ohio city where a legendary athlete played pro football before the NFL existed.`},
+{id:'ebbets',name:'Ebbets Field site',st:'NY',lat:40.6633,lon:-73.9577,fig:'robinson',hint:`A Brooklyn block where a ballpark once stood and apartments now mark the spot.`},
+{id:'cooperstown',name:'National Baseball Hall of Fame',st:'NY',lat:42.7005,lon:-74.923,fig:'robinson',hint:`A village museum where an honoree was inducted in 1962.`},
+{id:'kcmonarchs',name:'18th and Vine',st:'MO',lat:39.091,lon:-94.563,fig:'robinson',hint:`A Kansas City jazz and baseball district where a shortstop played in 1945.`},
+{id:'whitmanbirth',name:'Walt Whitman Birthplace',st:'NY',lat:40.8082,lon:-73.429,fig:'whitman',hint:`A Long Island farmhouse where a poet was born in May 1819.`},
+{id:'patentoffice',name:'Old Patent Office Building',st:'DC',lat:38.8978,lon:-77.023,fig:'whitman',hint:`A grand Greek Revival building that doubled as a hospital in 1863.`},
+{id:'mtholyoke',name:'Mount Holyoke College',st:'MA',lat:42.255,lon:-72.576,fig:'dickinson',hint:`A women's seminary where a homesick student spent a year in 1847.`},
+{id:'poemuseum',name:'Poe Museum',st:'VA',lat:37.535,lon:-77.428,fig:'poe',hint:`A Virginia capital city where an orphan was raised and began writing poems.`},
+{id:'poecottage',name:'Poe Cottage',st:'NY',lat:40.8612,lon:-73.896,fig:'poe',hint:`A tiny farmhouse in the Bronx where a writer lived in the late 1840s.`},
+{id:'poebalt',name:'Edgar Allan Poe House',st:'MD',lat:39.2918,lon:-76.6342,fig:'poe',hint:`A Baltimore rowhouse where a young writer lived with his aunt and cousin in the 1830s.`},
+{id:'carnegie',name:'Carnegie Hall',st:'NY',lat:40.7651,lon:-73.9799,fig:'louisarmstrong',hint:`A midtown concert hall where a trumpeter played a landmark show in 1947.`},
+{id:'fordmansion',name:'Morristown National Historical Park',st:'NJ',lat:40.788,lon:-74.481,fig:'hamilton',hint:`A New Jersey hilltop town where an army wintered and a young aide met his future wife.`},
+{id:'schuyler',name:'Schuyler Mansion',st:'NY',lat:42.637,lon:-73.75,fig:'hamilton',hint:`A Georgian mansion in Albany where a wedding was held in December 1780.`},
+{id:'nassau',name:'Nassau Hall',st:'NJ',lat:40.3485,lon:-74.659,fig:'madison',hint:`A stone hall that once held a whole college under one roof.`},
+{id:'octagon',name:'The Octagon House',st:'DC',lat:38.8962,lon:-77.0402,fig:'madison',hint:`A three-story brick house near the White House used as a presidential residence in 1814–15.`},
+{id:'harvard',name:'Harvard Yard',st:'MA',lat:42.3744,lon:-71.1169,fig:'jadams',hint:`A brick college yard where a farmer's son earned his degree in 1755.`},
+{id:'oldstatehouse',name:'Old State House',st:'MA',lat:42.3588,lon:-71.0575,fig:'jadams',hint:`A brick landmark in Boston whose courtroom saw a famous trial in 1770.`},
+{id:'whitehouse',name:'Lafayette Square',st:'DC',lat:38.8996,lon:-77.0366,fig:'jadams',hint:`A park across from a mansion whose first resident moved in before the paint dried in 1800.`},
+{id:'abigailbirth',name:'Abigail Adams Birthplace',st:'MA',lat:42.226,lon:-70.947,fig:'aadams',hint:`A South Shore parsonage town where a minister's daughter was born in 1744.`}
+];
+const SITE=Object.fromEntries(SITES.map(s=>[s.id,s]));
+/* Rule: a site must be a place the figure actually was. Each entry records the evidence. */
+const PROOF={
+gettysburg:`Lincoln delivered the Gettysburg Address at the dedication of the Soldiers' National Cemetery, just up the road, on November 19, 1863.`,
+roundtop:`Chamberlain's 20th Maine defended Little Round Top, the hill just above, on July 2, 1863.`,
+lincolncottage:`Lincoln lived here during the summers of 1862, 1863 and 1864 and commuted to the White House.`,
+springfield:`Lincoln lived in this house from 1844 until he left for Washington in 1861.`,
+indep:`Franklin signed both the Declaration of Independence and the Constitution in this building.`,
+mtvernon:`Washington lived and farmed here, and is buried on the grounds.`,
+valleyforge:`Washington commanded the Continental Army from headquarters here in the winter of 1777–78.`,
+monticello:`Jefferson designed this home, lived here for most of his life, and died here on July 4, 1826.`,
+reverehouse:`Revere lived in this house from 1770 to 1800.`,
+oldnorth:`Revere rang the bells here as a teenager and arranged the lantern signal hung in its steeple on April 18, 1775.`,
+cedarhill:`Douglass lived here from 1877 until his death in 1895.`,
+tubmanhome:`Tubman founded this home for the aged in Auburn, lived here, and died here in 1913.`,
+seneca:`Stanton lived in Seneca Falls and helped organize the 1848 convention held in the Wesleyan Chapel here.`,
+hullhouse:`Addams lived and worked at Hull-House from its founding in 1889.`,
+parksmuseum:`Parks was arrested on a Montgomery bus on December 1, 1955, near where this museum stands.`,
+wardsisland:`Lazarus visited Jewish refugees from Russia on Ward's Island in 1881.`,
+alamo:`Crockett arrived at the Alamo in February 1836 and died in the battle on March 6.`,
+washbrazos:`Houston was a delegate here when Texas declared independence on March 2, 1836, and the convention named him commander of the army.`,
+hannibal:`Twain grew up in this house in Hannibal.`,
+menlo:`Edison's laboratory stood here in the 1870s.`,
+kittyhawk:`The Wrights made their first powered flights near here on December 17, 1903.`,
+ksc:`Apollo 11 launched from here on July 16, 1969, with Armstrong aboard.`,
+dexter:`King served as pastor of this church from 1954 to 1960 and helped lead the Montgomery Bus Boycott from here.`,
+lincolnmem:`King delivered the "I Have a Dream" speech from the Lincoln Memorial on August 28, 1963, to a crowd lined along the Reflecting Pool.`,
+anthonyhouse:`Anthony lived in this house from 1866 until her death in 1906, and was arrested here in 1872 after voting.`,
+bartonhouse:`Barton lived here from 1897 until her death in 1912, and the house served as Red Cross headquarters.`,
+appomattox:`Lee surrendered to Grant in the McLean House in this village on April 9, 1865.`,
+galena:`Grant lived here after the citizens of Galena presented him with this house in 1865.`,
+sagamore:`Roosevelt lived here from 1885, and it served as his Summer White House during his presidency.`,
+springwood:`Roosevelt was born at Springwood in 1882, lived here as a boy and as an adult, and is buried in its rose garden.`,
+ricestadium:`Kennedy gave his "We choose to go to the Moon" speech in this stadium on September 12, 1962.`,
+tuskegee:`Carver taught and researched at Tuskegee Institute from 1896 until his death in 1943.`,
+earhartbirth:`Earhart was born in this house in 1897 and lived here with her grandparents as a child.`,
+fortmandan:`Sacagawea spent the winter of 1804–05 near here at Fort Mandan and gave birth to her son in February 1805.`,
+fortclatsop:`The Lewis and Clark expedition built Fort Clatsop near here and wintered on the Pacific coast in 1805–06.`,
+fortbuford:`Sitting Bull surrendered to the U.S. Army at Fort Buford on July 20, 1881.`,
+fraunces:`Washington bade farewell to his officers in the Long Room here on December 4, 1783.`,
+federalhall:`Washington took the oath as the first president on this site on April 30, 1789.`,
+craigie:`Washington made this house his headquarters from July 1775 to April 1776.`,
+oldsouth:`Franklin was baptized at Old South Meeting House on the day he was born in 1706.`,
+wm:`Jefferson studied at William & Mary from 1760 to 1762.`,
+poplar:`Jefferson designed this octagonal home and used it as a private retreat.`,
+hancockclarke:`Revere reached this house in Lexington around midnight on April 18, 1775, to warn Samuel Adams and John Hancock.`,
+newsalem:`Lincoln lived in New Salem from 1831 to 1837, working as a clerk, postmaster and surveyor.`,
+knobcreek:`Lincoln lived at Knob Creek Farm from about age 2 to 7.`,
+cooperunion:`Lincoln delivered his Cooper Union address here on February 27, 1860.`,
+chamberlainhouse:`Chamberlain lived in this Brunswick house, which he famously raised to add a new first floor.`,
+tubmanmd:`Tubman was born and raised in Dorchester County and returned to the area repeatedly to guide others to freedom.`,
+capemay:`Tubman worked in Cape May hotels in the early 1850s to fund her rescue trips.`,
+beaufort:`Tubman served the Union Army from the Beaufort area and helped lead the 1863 Combahee River Raid.`,
+fellspoint:`Douglass worked as a ship caulker in Fells Point and escaped from Baltimore in September 1838.`,
+newbedford:`Douglass and his wife stayed with the Johnsons after arriving in New Bedford in 1838.`,
+northstar:`Douglass published his newspaper The North Star from Rochester starting in 1847.`,
+stantonjohnstown:`Stanton was born in Johnstown, New York, in 1815.`,
+hunthouse:`Stanton attended the July 1848 tea at Jane Hunt's house in Waterloo where the Seneca Falls Convention was first planned.`,
+tenafly:`Stanton lived in Tenafly from 1868 until 1887.`,
+cedarville:`Addams was born in Cedarville, Illinois, in 1860.`,
+rockford:`Addams attended Rockford Female Seminary, now Rockford University, and graduated in 1881.`,
+emerson:`Lazarus visited Ralph Waldo Emerson at his Concord home in 1876.`,
+crockettbirth:`Crockett was born near here on August 17, 1786.`,
+crocketttavern:`Crockett spent part of his boyhood working at his father's tavern in this area.`,
+uscapitol:`Crockett served in the U.S. House of Representatives here from 1827 to 1831 and 1833 to 1835.`,
+tncapitol:`Houston served as governor of Tennessee from 1827 to 1829, governing from Nashville.`,
+virginiacity:`Twain worked here for the Territorial Enterprise in 1862–64 and first used the name Mark Twain here.`,
+angelscamp:`Twain heard the jumping frog story at the Angels Hotel in Angels Camp in 1865.`,
+elmira:`Twain spent summers at Quarry Farm in Elmira, where he wrote much of Adventures of Huckleberry Finn.`,
+milan:`Edison was born in this house in Milan, Ohio, in 1847.`,
+westorange:`Edison ran his West Orange laboratory here from 1887 until his death in 1931.`,
+greenfield:`Edison attended the 1929 Light's Golden Jubilee here, where a replica of his Menlo Park lab was unveiled.`,
+huffman:`The Wrights perfected their Flyer here in 1904–05 and made their first sustained, controlled circular flights.`,
+collegepark:`Wilbur Wright trained the Army's first military pilots here in 1909.`,
+purdue:`Armstrong studied aeronautical engineering at Purdue.`,
+jsc:`Armstrong trained for Apollo 11 at what is now NASA's Johnson Space Center.`,
+mlkbirth:`King was born in this house in 1929 and lived here until 1941.`,
+morehouse:`King graduated from Morehouse College in 1948.`,
+bu:`King earned his doctorate at Boston University in 1955.`,
+anthonybirth:`Anthony was born in Adams, Massachusetts, in 1820.`,
+canandaigua:`Anthony was tried here in June 1873 for voting illegally.`,
+bartonbirth:`Barton was born in North Oxford, Massachusetts, in 1821.`,
+johnstown:`Barton led Red Cross relief here after the Johnstown Flood of 1889.`,
+galveston:`Barton led Red Cross relief in Galveston after the 1900 hurricane.`,
+dansville:`Barton lived in Dansville, where the first local chapter of the American Red Cross was formed in 1881.`,
+westpoint:`Grant attended West Point and graduated in 1843.`,
+grantbirth:`Grant was born in this small house in Point Pleasant, Ohio, in 1822.`,
+whitehaven:`Grant farmed here with his wife Julia's family from 1854 to 1859.`,
+trbirth:`Roosevelt was born in a house at this address in 1858; the building is a reconstruction.`,
+yellowstone:`Roosevelt laid the cornerstone of this arch at Yellowstone's north entrance in April 1903.`,
+grandcanyon:`Roosevelt visited the Grand Canyon in 1903 and declared it a national monument in 1908.`,
+glacierpoint:`Roosevelt camped at Yosemite with John Muir in 1903, including a night at Glacier Point.`,
+warmsprings:`Roosevelt visited Warm Springs from 1924 and built the Little White House here in 1932.`,
+hooverdam:`Roosevelt dedicated Hoover Dam on September 30, 1935.`,
+jfkbirth:`Kennedy was born in this Brookline house in 1917.`,
+hyannis:`Kennedy spent summers in Hyannis Port, and this museum sits in the village center.`,
+coliseum:`Kennedy accepted the Democratic nomination here on July 15, 1960, with his "New Frontier" speech.`,
+diamond:`Carver was born on a farm near Diamond, Missouri, and grew up in this area.`,
+iowastate:`Carver studied agriculture at Iowa State, earning his bachelor's degree in 1894 and master's in 1896.`,
+longbeach:`Earhart took her first airplane ride at an airfield in Long Beach in December 1920.`,
+oakland:`Earhart landed here on January 12, 1935, completing the first solo flight from Hawaii to California.`,
+threeforks:`Sacagawea was captured here by Hidatsa raiders as a girl, and returned with the expedition in July 1805.`,
+pompeys:`Sacagawea passed this landmark with Clark's party in July 1806, when Clark carved his name.`,
+salmon:`Sacagawea's people, the Lemhi Shoshone, lived in the Lemhi Valley, and she returned here with the expedition in August 1805.`,
+dubois:`The Corps of Discovery trained and wintered here in 1803–04 before setting out.`,
+greatfalls:`The expedition portaged around the Great Falls of the Missouri in June 1805 and visited this large spring.`,
+lemhipass:`Lewis crossed the Continental Divide at Lemhi Pass on August 12, 1805.`,
+capedisapp:`Members of the expedition reached the Pacific coast near here in November 1805.`,
+fortyates:`Sitting Bull lived at the Standing Rock Agency, headquartered at Fort Yates, from 1883.`,
+fortrandall:`Sitting Bull and his band were held at Fort Randall from 1881 to 1883.`,
+canton:`Thorpe played for the Canton Bulldogs in 1915–17 and 1919–20.`,
+ebbets:`Robinson played his home games for the Dodgers at Ebbets Field from 1947 to 1956.`,
+cooperstown:`Robinson was inducted into the Baseball Hall of Fame in 1962.`,
+kcmonarchs:`Robinson played for the Kansas City Monarchs of the Negro American League in 1945.`,
+whitmanbirth:`Whitman was born in this farmhouse in West Hills, Long Island, in 1819.`,
+patentoffice:`Whitman visited and comforted wounded soldiers here when it served as a Civil War hospital.`,
+mtholyoke:`Dickinson attended Mount Holyoke Female Seminary in 1847–48.`,
+poemuseum:`Poe grew up in Richmond, Virginia, in the household of John and Frances Allan.`,
+poecottage:`Poe lived in this small Bronx cottage from 1846 to 1849.`,
+poebalt:`Poe lived in this small Baltimore house in the early 1830s.`,
+carnegie:`Armstrong performed at Carnegie Hall, including a landmark concert in 1947.`,
+fordmansion:`Hamilton served on Washington's staff when the army wintered at Morristown in 1779–80, where he met Elizabeth Schuyler.`,
+schuyler:`Hamilton married Elizabeth Schuyler in this house on December 14, 1780.`,
+nassau:`Madison studied at the College of New Jersey, now Princeton, and graduated in 1771.`,
+octagon:`James and Dolley Madison lived in the Octagon in 1814–15 after the British burned the White House.`,
+harvard:`Adams graduated from Harvard in 1755.`,
+oldstatehouse:`Adams argued cases in the Old State House courtroom, where the 1770 trial of the British soldiers he defended took place.`,
+whitehouse:`Adams was the first president to live in the White House, which stands across the park; he moved in on November 1, 1800.`,
+abigailbirth:`Abigail Adams was born in Weymouth, Massachusetts, in 1744.`,
+carlisle:`Thorpe attended the Carlisle Indian Industrial School here and starred on its football and track teams.`,
+daytona:`Robinson played here with the Montreal Royals in the spring of 1946, a year before his Dodgers debut.`,
+whitmanhouse:`Whitman bought this house in 1884 and lived here until his death in 1892.`,
+dickinsonhome:`Dickinson was born in the Homestead in 1830, returned to live there in 1855, and died there in 1886.`,
+poehouse:`Poe lived in this house around 1843–44, during his years in Philadelphia.`,
+louishouse:`Armstrong lived in this house in Queens from 1943 until his death in 1971.`,
+hamiltongrange:`Hamilton built this country home in 1802 and lived here until 1804; the building has since been moved a short distance.`,
+montpelier:`Madison grew up at Montpelier, lived and farmed here for most of his life, and is buried on the grounds.`,
+adamsbirth:`John Adams was born in this saltbox house in 1735.`,
+peacefield:`Abigail Adams lived at Peacefield after the family settled in Quincy and died there in 1818.`,
+declarationhouse:`Jefferson rented rooms in the Graff House and drafted the Declaration of Independence here in June 1776.`,
+uva:`Jefferson founded the University of Virginia, designed its buildings, and rode here regularly to inspect construction.`,
+franklincourt:`Franklin's house stood on this property, his Philadelphia home from the 1760s until his death in 1790.`,
+washcrossing:`Washington led the army across the Delaware River from near here on the night of December 25–26, 1776.`,
+bowdoin:`Chamberlain taught at Bowdoin College before the war and served as its president from 1871 to 1883.`,
+twainhouse:`Twain lived in this Hartford house from 1874 to 1891, the most productive years of his career.`,
+edisonfm:`Edison wintered here from 1886 and kept a laboratory on the grounds.`,
+wapakoneta:`Armstrong grew up in Wapakoneta, Ohio, and earned his pilot's license here at 16, before his driver's license.`,
+houstonhome:`Houston kept a home in Huntsville, Texas, where he lived in the 1850s and died in 1863.`
+};
+
+const OFFERS=[
+{id:'o1',who:'Hollis',where:'Boston',give:'tubman',want:'founding',line:`Retired history teacher with a shelf of Founding Era stamps and no room for more.`},
+{id:'o2',who:'Marguerite',where:'Chicago',give:'chamberlain',want:'women',line:`Runs a reading group and wants anyone who shaped America's women's history.`},
+{id:'o3',who:'Dev',where:'Houston',give:'armstrong',want:'civilwar',line:`Space-obsessed, but he promised his grandfather a full Civil War page.`},
+{id:'o4',who:'Odette',where:'Montgomery',give:'stanton',want:'makers',line:`Collects inventors and pilots, and trades suffrage leaders for them.`},
+{id:'o5',who:'Walt',where:'Hannibal',give:'revere',want:'frontier',line:`Tells river stories on weekends. Wants an explorer or frontier figure for the next one.`},
+{id:'o6',who:'Wendell',where:'Hartford',give:'carver',want:'presidents',line:`Keeps a wall of presidents in his study and a gap where one is missing.`},
+{id:'o7',who:'Ruth',where:'Amherst',give:'dickinson',want:'freedom',line:`Teaches a seminar on protest and wants anyone from the freedom struggle.`},
+{id:'o8',who:'Cal',where:'Daytona Beach',give:'robinson',want:'letters',line:`Sells used books near the ballpark and wants poets, writers or musicians.`}
+];
+
+/* ---------- Geo and projection ---------- */
+const OUTLINE=[[-124.7,48.4],[-124.1,46.2],[-124.4,43],[-124.2,40.4],[-122.4,37.8],[-120.6,34.6],[-118.5,34],[-117.1,32.5],[-114.7,32.7],[-111,31.3],[-108.2,31.3],[-106.5,31.8],[-104.5,29.6],[-103,29],[-101.4,29.8],[-99.5,27.5],[-97.2,25.9],[-97.4,27.8],[-94.7,29.4],[-91,29.2],[-89.2,29],[-89.4,30.2],[-87.5,30.3],[-85,29.7],[-83,29],[-82.7,27.5],[-81.8,26],[-80.4,25.2],[-80.1,26.8],[-80.6,28.5],[-81.4,30.7],[-80.9,32],[-79.2,33.2],[-77,34.6],[-75.5,35.2],[-76,36.9],[-75.9,37.5],[-74,39],[-74,40.5],[-71.9,41.1],[-70,41.7],[-70.6,42.7],[-70.2,43.7],[-67,44.8],[-67.8,47.1],[-69.2,47.4],[-70.8,45.3],[-71.5,45],[-74.8,45],[-76.8,43.6],[-79,43.3],[-82.5,42.9],[-82.5,45.3],[-84.5,46.5],[-88,48],[-89.6,48],[-94.6,48.7],[-95.2,49],[-123,49]];
+const REG={usa:[-125,-66.5,24.5,49.6,'USA'],northeast:[-80.8,-69.8,37.2,44.2,'Northeast'],dc:[-77.3,-76.85,38.65,39.02,'DC area'],southeast:[-89,-74,26.3,37.2,'Southeast'],midwest:[-99,-81,36.8,43.6,'Midwest'],texas:[-101.5,-93.5,27.8,33.4,'Texas'],northwest:[-125,-99.5,44.3,48.8,'Northwest'],west:[-124.8,-109.5,32.3,42.2,'West']};
+const AR=1.4,KX=7.9,KY=10,LON0=-125,LAT0=49.6,RANGE=0.3,COOLDOWN=20*3600e3;
+const px=lon=>(lon-LON0)*KX, py=lat=>(LAT0-lat)*KY;
+function vbFor(k){const r=REG[k];const x0=px(r[0]),x1=px(r[1]),y0=py(r[3]),y1=py(r[2]);let w=(x1-x0)*1.12,h=(y1-y0)*1.12;if(w/h<AR)w=h*AR;else h=w/AR;const cx=(x0+x1)/2,cy=(y0+y1)/2;return{x:cx-w/2,y:cy-h/2,w,h};}
+function miles(a,b,c,d){const R=3958.8,t=x=>x*Math.PI/180;const dl=t(c-a),dn=t(d-b);const h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+const dist=s=>miles(S.pos.lat,S.pos.lon,s.lat,s.lon);
+const fmtD=d=>d<10?d.toFixed(1):Math.round(d).toLocaleString();
+
+/* ---------- State ---------- */
+const KEY='provenance-v1';
+function fresh(){return{pos:{lat:32.7767,lon:-96.7970,label:'Dallas, TX',mode:'demo'},coll:{},visits:{},trades:[],region:'usa',tab:'map'};}
+function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(fresh(),JSON.parse(r));}catch(e){}return fresh();}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+let ui={sel:null,study:null,fig:null,tradeOpen:null,gpsMsg:'',confirmReset:false,note:''};
+let vb=null;
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const owned=()=>FIGS.filter(f=>S.coll[f.id]&&S.coll[f.id].count>0);
+const spares=id=>S.coll[id]?Math.max(0,S.coll[id].count-1):0;
+const totalSpares=()=>FIGS.reduce((n,f)=>n+spares(f.id),0);
+const inRange=s=>dist(s)<=RANGE;
+const waitMs=s=>{const t=S.visits[s.id];if(!t)return 0;return Math.max(0,COOLDOWN-(Date.now()-t));};
+const initials=n=>{const p=n.replace(/&/g,' ').split(/\s+/).filter(Boolean);return(p[0][0]+p[p.length-1][0]).toUpperCase();};
+const statesFor=id=>[...new Set(SITES.filter(s=>s.fig===id).map(s=>s.st))].join(' / ');
+const fmtDate=t=>new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+
+function addCopy(id,site,via){const c=S.coll[id]||(S.coll[id]={count:0,deep:false,log:[]});c.count++;c.log.push({site,via,t:Date.now()});return c.count;}
+
+/* ---------- Drawing helpers ---------- */
+/* Cartoon portraits supplied by the owner. Add a file to portraits/ and one line here per figure. */
+const IMG=Object.fromEntries(['jefferson','washington','franklin','revere','lincoln','chamberlain','tubman','douglass','stanton','addams','parks'].map(k=>[k,'portraits/'+k+'.jpg']));
+function rosette(id,size,color,text){
+  if(IMG[id]){const s=Math.round(size*1.12),locked=text==='?';return `<img src="${IMG[id]}" alt="" width="${s}" height="${s}" style="display:block;margin:0 auto 4px;width:${s}px;height:${s}px;object-fit:cover;border-radius:2px;border:1.5px solid ${color};${locked?'filter:grayscale(1) contrast(.85) brightness(.9);opacity:.55':''}">`;}
+  const h=hash(id),n=14+h%10,ry=5+(h>>4)%9,rot=(h>>8)%30;let g='';
+  for(let i=0;i<n;i++)g+=`<ellipse cx="50" cy="50" rx="30" ry="${ry}" transform="rotate(${rot+i*180/n} 50 50)"/>`;
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true"><g fill="none" style="stroke:${color}" stroke-width=".55" opacity=".8">${g}</g><circle cx="50" cy="50" r="31" fill="none" style="stroke:${color}" stroke-width=".9"/><circle cx="50" cy="50" r="19" style="fill:var(--card);stroke:${color}" stroke-width=".9"/><text x="50" y="57" text-anchor="middle" font-size="19" font-weight="600" style="font-family:var(--display);fill:${color}">${text}</text></svg>`;
+}
+function stampHTML(f){
+  const c=S.coll[f.id],got=c&&c.count>0,t=TIER[f.tier];
+  return `<button class="stamp ${got?'':'locked'}" data-a="fig" data-id="${f.id}" aria-label="${got?f.name:'Unknown figure in '+statesFor(f.id)}">${rosette(f.id,64,got?t.c:'var(--muted)',got?initials(f.name):'?')}<div class="sn">${got?f.name:'Unknown'}</div><div class="sy">${got?(f.years.length>12?TIER[f.tier].label:f.years):statesFor(f.id)}</div>${got&&c.count>1?`<span class="copies">×${c.count}</span>`:''}</button>`;
+}
+
+/* ---------- Map ---------- */
+function mapHTML(){
+  if(!vb)vb=vbFor(S.region);
+  const cw=Math.min(window.innerWidth,560)-34,k=vb.w/cw;
+  let s=`<svg id="map" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" role="img" aria-label="Map of historic sites across the United States" style="width:100%;aspect-ratio:${AR};display:block">`;
+  s+=`<rect x="-300" y="-300" width="1200" height="900" style="fill:var(--water)"/>`;
+  const land='M'+OUTLINE.map(p=>px(p[0]).toFixed(1)+','+py(p[1]).toFixed(1)).join('L')+'Z';
+  s+=`<path d="${land}" style="fill:var(--land);stroke:var(--line)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`;
+  for(let lo=-125;lo<=-65;lo+=5)s+=`<line x1="${px(lo)}" y1="-300" x2="${px(lo)}" y2="600" style="stroke:var(--line)" stroke-width=".5" stroke-dasharray="2 4" vector-effect="non-scaling-stroke" opacity=".7"/>`;
+  for(let la=25;la<=50;la+=5)s+=`<line x1="-300" y1="${py(la)}" x2="900" y2="${py(la)}" style="stroke:var(--line)" stroke-width=".5" stroke-dasharray="2 4" vector-effect="non-scaling-stroke" opacity=".7"/>`;
+  const r=6.5*k;
+  const order=SITES.slice().sort((a,b)=>(a.id===ui.sel)-(b.id===ui.sel));
+  for(const site of order){
+    const x=px(site.lon),y=py(site.lat),seen=!!S.visits[site.id],near=inRange(site),sel=site.id===ui.sel;
+    s+=`<g data-a="sel" data-id="${site.id}" style="cursor:pointer"><circle cx="${x}" cy="${y}" r="${r*2.4}" fill="transparent"/>`;
+    if(near)s+=`<circle class="pulse" cx="${x}" cy="${y}" r="${r}" fill="none" style="stroke:var(--seal)" stroke-width="${1.6*k}"/>`;
+    if(sel)s+=`<circle cx="${x}" cy="${y}" r="${r*1.9}" fill="none" style="stroke:var(--ink)" stroke-width="${1.3*k}" stroke-dasharray="${3*k} ${2.5*k}"/>`;
+    s+=`<circle cx="${x}" cy="${y}" r="${r}" style="fill:${seen?'var(--seal)':'var(--card)'};stroke:${seen?'var(--card)':'var(--ink)'}" stroke-width="${1.7*k}"/></g>`;
+    if(sel){const right=x>vb.x+vb.w*0.6;s+=`<text x="${x+(right?-1:1)*r*2.4}" y="${y+4*k}" text-anchor="${right?'end':'start'}" font-size="${12*k}" font-weight="600" style="font-family:var(--body);fill:var(--ink);stroke:var(--card);paint-order:stroke" stroke-width="${3.2*k}" stroke-linejoin="round" pointer-events="none">${site.name}</text>`;}
+  }
+  const X=px(S.pos.lon),Y=py(S.pos.lat);
+  s+=`<circle cx="${X}" cy="${Y}" r="${11*k}" style="fill:var(--sea)" opacity=".22"/><circle cx="${X}" cy="${Y}" r="${5*k}" style="fill:var(--sea);stroke:var(--card)" stroke-width="${2*k}"/>`;
+  return s+'</svg>';
+}
+function tweenTo(to){
+  const from=vb||vbFor('usa'),t0=performance.now(),D=reduce?0:450;
+  function step(t){const p=D?Math.min(1,(t-t0)/D):1,e=1-Math.pow(1-p,3);
+    vb={x:from.x+(to.x-from.x)*e,y:from.y+(to.y-from.y)*e,w:from.w+(to.w-from.w)*e,h:from.h+(to.h-from.h)*e};
+    const svg=document.getElementById('map');if(svg)svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+    if(p<1)requestAnimationFrame(step);else{vb=to;render();}}
+  requestAnimationFrame(step);
+}
+function goRegion(key){S.region=key;save();render();tweenTo(vbFor(key));}
+
+function siteCard(){
+  if(!ui.sel){
+    const near=SITES.slice().sort((a,b)=>dist(a)-dist(b)).slice(0,3);
+    return `<div class="card"><h2>Where history is waiting</h2>
+      <p class="muted">Every site is a place the figure actually was. Travel there, read the dossier, pass the quiz, and the figure is stamped into your album. Spare copies can deepen a record or be traded.</p>
+      <h3 style="margin-top:12px">Closest to you</h3>
+      ${near.map(s=>`<button class="near" data-a="sel" data-id="${s.id}"><span>${s.name}, ${s.st}</span><span>${fmtD(dist(s))} mi</span></button>`).join('')}
+      </div>${gpsCard()}`;
+  }
+  const site=SITE[ui.sel],f=FIG[site.fig],d=dist(site),near=d<=RANGE,seen=!!S.visits[site.id],w=waitMs(site);
+  let btn='';
+  if(near){btn=w?`<button class="btn" disabled>Recorded. Returns in ${Math.ceil(w/3.6e6)}h</button>`:`<button class="btn seal" data-a="study" data-id="${site.id}">${site.memorial?'Record your visit':'Study and collect'}</button>`;}
+  else if(S.pos.mode==='demo'){btn=`<button class="btn" data-a="travel" data-id="${site.id}">Travel here (demo)</button>`;}
+  else btn=`<button class="btn" disabled>Get within ${RANGE} mi to collect</button>`;
+  return `<div class="card"><div class="eyebrow">${site.st} · ${fmtD(d)} mi away${near?' · in range':''}</div>
+    <h2>${site.name}</h2>
+    <p>${seen?`Figure: <b>${f.name}</b> <span class="tier" style="color:${TIER[f.tier].c}">${TIER[f.tier].label}</span>`:`<span class="hint">${site.hint}</span>`}</p>
+    ${seen?`<p class="muted" style="font-size:13px">Why here: ${PROOF[site.id]}</p>`:''}
+    ${site.memorial?`<div class="note">This collection point sits outside the grounds of a place that calls for respect. Please do not enter the grounds to play. Visits are recorded quietly, with no celebration.</div>`:''}
+    ${btn}<button class="btn alt" data-a="zoomsite" data-id="${site.id}">Zoom in on the map</button><button class="btn alt" data-a="clearsel">Back to the list</button></div>`;
+}
+function gpsCard(){
+  return `<div class="card"><div class="eyebrow">LOCATION</div>
+    <p style="margin-bottom:4px">${S.pos.mode==='demo'?'Demo travel is on. Tapping a site lets you jump there.':'Live location is on. You must be within '+RANGE+' mi of a site.'}</p>
+    ${ui.gpsMsg?`<p class="muted" style="font-size:13px">${ui.gpsMsg}</p>`:''}
+    ${S.pos.mode==='demo'?`<button class="btn alt" data-a="gps">Use my GPS</button>`:`<button class="btn alt" data-a="demo">Switch to demo travel</button>`}</div>`;
+}
+
+/* ---------- Album ---------- */
+function albumHTML(){
+  const flt=ui.afilter||'all',got=f=>!!(S.coll[f.id]&&S.coll[f.id].count>0);
+  const pool=flt==='all'?FIGS:FIGS.filter(f=>f.sets.includes(flt));
+  const list=pool.slice().sort((a,b)=>got(b)-got(a));
+  const n=pool.filter(got).length;
+  const chips=[['all','All']].concat(Object.keys(SETS).map(k=>[k,SETS[k]]));
+  return `<h3 style="margin-top:4px">Album</h3>
+    <div class="chips" role="group" aria-label="Group">${chips.map(([k,l])=>`<button class="chip" data-a="afilter" data-id="${k}" aria-pressed="${flt===k}">${l}</button>`).join('')}</div>
+    <div class="setrow"><b style="font:600 17px var(--display)">${flt==='all'?'Everyone':SETS[flt]}</b><span>${n}/${pool.length}${n===pool.length?' · complete':''}</span></div>
+    <div class="bar"><i style="width:${pool.length?n/pool.length*100:0}%"></i></div>
+    <div class="grid" style="margin-bottom:18px">${list.map(stampHTML).join('')}</div>`;
+}
+function figSheet(){
+  const f=FIG[ui.fig],c=S.coll[f.id],got=c&&c.count>0,t=TIER[f.tier];
+  if(!got){
+    const hints=SITES.filter(s=>s.fig===f.id);
+    return sheet(`<div class="eyebrow">UNKNOWN FIGURE · ${f.sets.map(k=>SETS[k]).join(' · ')}</div><div class="row">${rosette(f.id,84,'var(--muted)','?')}<div><h2>Not yet collected</h2><span class="tier" style="color:${t.c}">${t.label}</span></div></div>
+      <p>${hints.length>1?'This figure turns up in '+hints.length+' places.':'This figure is tied to one place.'} Look in ${statesFor(f.id)}.</p>
+      ${hints.map(s=>`<p class="hint">“${s.hint}”</p>`).join('')}<button class="btn alt" data-a="close">Close</button>`);
+  }
+  const sp=spares(f.id),mates=FIGS.filter(x=>x.id!==f.id&&x.sets.some(k=>f.sets.includes(k))).slice(0,10);
+  return sheet(`<div class="eyebrow">${f.sets.map(k=>SETS[k]).join(' · ').toUpperCase()}</div><div class="row">${rosette(f.id,84,t.c,initials(f.name))}<div><h2>${f.name}</h2><div class="muted">${f.years}</div><span class="tier" style="color:${t.c}">${t.label}</span> <span class="muted" style="font:400 12px var(--mono)">· ${c.count} held, ${sp} spare</span></div></div>
+    <p class="muted" style="font-size:13px">${f.role}</p><p>${f.bio}</p>
+    ${c.deep?`<h3>Deeper record</h3><p>${f.deep}</p>`:`<button class="btn alt" data-a="deepen" data-id="${f.id}" ${sp<1?'disabled':''}>${sp<1?'Deeper record needs 1 spare':'Deepen the record (uses 1 spare)'}</button>`}
+    <h3>Provenance</h3>${c.log.map(e=>`<p style="margin-bottom:4px;font-size:13px">${fmtDate(e.t)} · ${e.site?SITE[e.site].name+', '+SITE[e.site].st:e.via}</p>`).join('')}
+    <h3>Connected figures</h3><div>${mates.map(m=>{const g=S.coll[m.id]&&S.coll[m.id].count>0;return `<span class="chipsm" style="${g?'':'color:var(--muted)'}">${g?m.name:'Unknown'}</span>`;}).join('')}</div>
+    <button class="btn" data-a="close">Close</button>`);
+}
+
+/* ---------- Trade ---------- */
+function tradeHTML(){
+  const sp=FIGS.filter(f=>spares(f.id)>0);
+  let h=`<h3 style="margin-top:4px">Your spares</h3><div class="card">${sp.length?sp.map(f=>`<span class="chipsm">${f.name} ×${spares(f.id)}</span>`).join(''):`<p class="muted" style="margin:0">None yet. A second site tied to the same figure gives a spare, and so does a return visit a day later. Lincoln appears in three places.</p>`}</div>`;
+  h+=`<h3>Collectors nearby</h3>`;
+  for(const o of OFFERS){
+    const g=FIG[o.give],done=S.trades.includes(o.id),elig=FIGS.filter(f=>f.sets.includes(o.want)&&spares(f.id)>0),open=ui.tradeOpen===o.id;
+    h+=`<div class="card"><div class="eyebrow">${o.who.toUpperCase()} · ${o.where.toUpperCase()}</div><p>${o.line}</p>
+      <div class="swap"><div><span class="muted">You get</span><b>${g.name}</b><span class="tier" style="color:${TIER[g.tier].c}">${TIER[g.tier].label}</span></div><span>for</span><div><span class="muted">You give</span><b>1 spare</b><span style="font-size:12px">${SETS[o.want]}</span></div></div>`;
+    if(done)h+=`<button class="btn" disabled>Trade complete</button>`;
+    else if(!elig.length)h+=`<button class="btn" disabled>Needs a spare from ${SETS[o.want]}</button>`;
+    else if(!open)h+=`<button class="btn" data-a="topen" data-id="${o.id}">Trade</button>`;
+    else h+=`<p class="muted" style="font-size:13px;margin:8px 0 0">Choose the spare to give:</p>${elig.map(f=>`<button class="opt" data-a="tdo" data-id="${o.id}" data-fig="${f.id}">${f.name} <span class="muted">(${spares(f.id)} spare)</span></button>`).join('')}`;
+    h+=`</div>`;
+  }
+  const pool=FIGS.filter(f=>f.tier!=='rare'&&!(S.coll[f.id]&&S.coll[f.id].count>0));
+  h+=`<h3>Archive exchange</h3><div class="card"><p>Hand in 3 spares and the archive sends one Common or Uncommon figure you do not own yet. Rare figures only come from travel or trades.</p><button class="btn" data-a="exchange" ${totalSpares()<3||!pool.length?'disabled':''}>${!pool.length?'Nothing left to receive':totalSpares()<3?`Needs 3 spares (you have ${totalSpares()})`:'Exchange 3 spares'}</button></div>`;
+  h+=`<h3>Prototype</h3><div class="card"><p class="muted" style="font-size:13px">Collectors here are simulated. Real player-to-player trading needs accounts and a server.</p><button class="btn alt" data-a="reset">${ui.confirmReset?'Tap again to erase progress':'Reset progress'}</button></div>`;
+  return h;
+}
+
+/* ---------- Study flow ---------- */
+function sheet(inner){return `<div class="sheet" data-a="shade"><div role="dialog" aria-modal="true">${inner}</div></div>`;}
+function studySheet(){
+  const st=ui.study,site=SITE[st.site],f=FIG[site.fig],t=TIER[f.tier];
+  if(st.step==='read'){
+    return sheet(`<div class="eyebrow">FIELD DOSSIER · ${site.name.toUpperCase()}</div><div class="row">${rosette(f.id,84,t.c,initials(f.name))}<div><h2>${f.name}</h2><div class="muted" style="font-size:13px">${f.years}</div><span class="tier" style="color:${t.c}">${t.label}</span></div></div>
+      <p class="muted" style="font-size:13px">${f.role}</p><p>${f.bio}</p>
+      <div class="note" style="border-left-color:var(--sea)">Why here: ${PROOF[site.id]}</div>
+      ${site.memorial?`<div class="note">You are near a place that calls for respect. Take a moment before you continue.</div>`:''}
+      <button class="btn" data-a="quiz">I have read it. Take the quiz</button><button class="btn alt" data-a="close">Not now</button>`);
+  }
+  if(st.step==='quiz'){
+    const k=hash(site.id)%3,order=[0,1,2].map(i=>(i+k)%3);
+    return sheet(`<div class="eyebrow">QUIZ · ${f.name.toUpperCase()}</div><h2 style="font-size:19px">${f.q}</h2>
+      ${order.map(i=>`<button class="opt ${st.wrong===i?'bad':''}" data-a="pick" data-i="${i}">${f.o[i]}</button>`).join('')}
+      ${st.wrong!==null?`<p style="margin:12px 0 0;color:var(--seal)">Not quite. Re-read the dossier and try again.</p><button class="btn" data-a="reread">Re-read the dossier</button>`:''}`);
+  }
+  const dup=st.count>1,d=new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'}).toUpperCase();
+  return sheet(`<div class="eyebrow" style="text-align:center">${dup?'DUPLICATE':'NEW IN YOUR ALBUM'}</div>
+    <div class="stampbig"><div class="stamp ${site.memorial?'':'thunk'}" style="width:150px;cursor:default">${rosette(f.id,110,t.c,initials(f.name))}<div class="sn" style="font-size:15px">${f.name}</div><div class="sy">${f.years.length>12?t.label:f.years}</div></div>
+    <div class="postmark">${site.name.toUpperCase()}<br>${site.st} · ${d}</div></div>
+    <p style="text-align:center">${dup?`You now hold ${st.count} copies, so ${st.count-1} spare. Spares can deepen a record or be traded.`:'Stamped and added. Open its record any time from the album.'}</p>
+    <button class="btn" data-a="toalbum">View album</button><button class="btn alt" data-a="close">Keep exploring</button>`);
+}
+
+/* ---------- Shell ---------- */
+function header(){return `<header><div><h1 class="brand">Provenance</h1><div class="loc">${S.pos.label} · ${S.pos.mode==='demo'?'demo travel':'live GPS'}</div></div><div class="count"><b>${owned().length}</b> / ${FIGS.length}<br>figures</div></header>`;}
+function nav(){return `<nav>${[['map','Map'],['album','Album'],['trade','Trade']].map(([k,l])=>`<button data-a="tab" data-id="${k}" ${S.tab===k?'aria-current="page"':''}>${l}${k==='trade'&&totalSpares()?` (${totalSpares()})`:''}</button>`).join('')}</nav>`;}
+function body(){
+  if(S.tab==='album')return albumHTML();
+  if(S.tab==='trade')return tradeHTML();
+  return `<div class="chips" role="group" aria-label="Map region">${Object.keys(REG).map(k=>`<button class="chip" data-a="region" data-id="${k}" aria-pressed="${S.region===k}">${REG[k][4]}</button>`).join('')}</div><div class="mapwrap">${mapHTML()}</div>${siteCard()}`;
+}
+function render(keep=true){
+  const m=document.getElementById('view'),st=m?m.scrollTop:0;
+  app.innerHTML=`${header()}<main id="view">${body()}</main>${nav()}${ui.study?studySheet():ui.fig?figSheet():''}`;
+  const m2=document.getElementById('view');if(keep&&m2)m2.scrollTop=st;
+}
+const app=document.getElementById('app');
+
+/* ---------- Actions ---------- */
+function gps(){
+  if(!navigator.geolocation){ui.gpsMsg='Location is not available on this device. Demo travel stays on.';render();return;}
+  ui.gpsMsg='Asking for your location...';render();
+  try{navigator.geolocation.getCurrentPosition(
+    p=>{S.pos={lat:p.coords.latitude,lon:p.coords.longitude,label:'Your location',mode:'gps'};ui.gpsMsg='';save();render();},
+    ()=>{ui.gpsMsg='Location is blocked in this preview, so demo travel stays on. A phone app would use real GPS here.';render();},
+    {enableHighAccuracy:true,timeout:8000});
+  }catch(e){ui.gpsMsg='Location is blocked in this preview, so demo travel stays on.';render();}
+}
+function act(a,el){
+  switch(a){
+    case 'tab':S.tab=el.dataset.id;ui.sel=null;save();render(false);break;
+    case 'region':goRegion(el.dataset.id);break;
+    case 'zoomsite':{const t=SITE[el.dataset.id],w=5,h=w/AR;tweenTo({x:px(t.lon)-w/2,y:py(t.lat)-h/2,w,h});break;}
+    case 'afilter':ui.afilter=el.dataset.id;render();break;
+    case 'sel':ui.sel=el.dataset.id;render();break;
+    case 'clearsel':ui.sel=null;render();break;
+    case 'travel':{const s=SITE[el.dataset.id];S.pos={lat:s.lat,lon:s.lon,label:s.name,mode:'demo'};save();render();break;}
+    case 'gps':gps();break;
+    case 'demo':S.pos.mode='demo';ui.gpsMsg='';save();render();break;
+    case 'study':ui.study={site:el.dataset.id,step:'read',wrong:null,count:0};render(false);break;
+    case 'quiz':ui.study.step='quiz';ui.study.wrong=null;render(false);break;
+    case 'reread':ui.study.step='read';ui.study.wrong=null;render(false);break;
+    case 'pick':{const i=+el.dataset.i;if(i===0){const site=SITE[ui.study.site];ui.study.count=addCopy(site.fig,site.id,'visit');S.visits[site.id]=Date.now();ui.study.step='done';save();}else ui.study.wrong=i;render(false);break;}
+    case 'toalbum':ui.study=null;S.tab='album';save();render(false);break;
+    case 'fig':ui.fig=el.dataset.id;render();break;
+    case 'close':ui.study=null;ui.fig=null;render();break;
+    case 'deepen':{const c=S.coll[el.dataset.id];if(c&&!c.deep&&c.count>1){c.count--;c.deep=true;save();}render();break;}
+    case 'topen':ui.tradeOpen=ui.tradeOpen===el.dataset.id?null:el.dataset.id;render();break;
+    case 'tdo':{const o=OFFERS.find(x=>x.id===el.dataset.id),fid=el.dataset.fig;if(o&&spares(fid)>0&&!S.trades.includes(o.id)){S.coll[fid].count--;addCopy(o.give,null,`Traded with ${o.who} in ${o.where}`);S.trades.push(o.id);ui.tradeOpen=null;save();}render();break;}
+    case 'exchange':{const pool=FIGS.filter(f=>f.tier!=='rare'&&!(S.coll[f.id]&&S.coll[f.id].count>0));if(totalSpares()>=3&&pool.length){let need=3;while(need>0){const top=FIGS.slice().sort((a,b)=>spares(b.id)-spares(a.id))[0];S.coll[top.id].count--;need--;}const pick=pool[Math.floor(Math.random()*pool.length)];addCopy(pick.id,null,'Archive exchange');ui.fig=pick.id;save();}render();break;}
+    case 'reset':if(ui.confirmReset){S=fresh();vb=null;ui.confirmReset=false;ui.sel=null;save();}else ui.confirmReset=true;render(S.tab==='trade');break;
+  }
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-a]');if(!el)return;
+  if(el.dataset.a==='shade'){if(e.target!==el)return;ui.study=null;ui.fig=null;render();return;}
+  act(el.dataset.a,el);
+});
+window.addEventListener('resize',()=>render());
+
+function boot(data){if(data&&data.coll)S=Object.assign(fresh(),data);
+  for(const k of Object.keys(S.visits))if(!SITE[k])delete S.visits[k];
+  for(const id of Object.keys(S.coll))S.coll[id].log=S.coll[id].log.map(e=>e.site&&!SITE[e.site]?{site:null,via:'Visit',t:e.t}:e);
+  vb=vbFor(S.region);render(false);}
+if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>S);
+if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(boot);else boot(window.claude&&window.claude.hot?window.claude.hot.data:null);
+</script>
+</body>
+</html>
