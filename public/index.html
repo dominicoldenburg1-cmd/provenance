@@ -103,7 +103,7 @@ button:focus-visible,.stamp:focus-visible{outline:2px solid var(--sea);outline-o
 @keyframes pulse{from{transform:scale(1);opacity:.8}to{transform:scale(2.8);opacity:0}}
 @keyframes thunk{0%{transform:scale(1.6) rotate(-9deg);opacity:0}100%{transform:scale(1) rotate(-3deg);opacity:1}}
 </style>
-<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="vendor/leaflet/leaflet.css"><script src="vendor/leaflet/leaflet.js"></script></head>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="vendor/leaflet/leaflet.css"><script src="vendor/leaflet/leaflet.js"></script><meta name="app-version" content="20261119-0205"></head>
 <body>
 <div id="app"></div>
 <script>
@@ -810,7 +810,7 @@ function studySheet(){
 }
 
 /* ---------- Shell ---------- */
-function header(){return `<header><div><h1 class="brand">Provenance</h1><div class="loc">${S.pos.label} · ${S.pos.mode==='demo'?'demo travel':'live GPS'}</div></div><div class="count"><b>${owned().length}</b> / ${FIGS.length}<br>figures</div></header>`;}
+function header(){return `<header><div><h1 class="brand">Provenance</h1><div class="loc">${S.pos.label} · ${S.pos.mode==='demo'?'demo travel':'live GPS'} · v${(document.querySelector('meta[name="app-version"]')||{}).content||''}</div></div><div class="count"><b>${owned().length}</b> / ${FIGS.length}<br>figures</div></header>`;}
 function nav(){return `<nav>${[['map','Map'],['album','Album'],['trade','Trade']].map(([k,l])=>`<button data-a="tab" data-id="${k}" ${S.tab===k?'aria-current="page"':''}>${l}${k==='trade'&&totalSpares()?` (${totalSpares()})`:''}</button>`).join('')}</nav>`;}
 function body(){
   if(S.tab==='album')return albumHTML();
@@ -873,6 +873,20 @@ function boot(data){if(data&&data.coll)S=Object.assign(fresh(),data);
   vb=vbFor(S.region);render(false);}
 if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>S);
 if(window.claude&&window.claude.hot&&window.claude.hot.ready)window.claude.hot.ready(boot);else boot(window.claude&&window.claude.hot?window.claude.hot.data:null);
+
+/* ---------- Auto-update: reload when a newer version is deployed ---------- */
+(function(){
+  const cur=(document.querySelector('meta[name="app-version"]')||{}).content;
+  async function check(){
+    try{
+      const r=await fetch('index.html?_='+Date.now(),{cache:'no-store'});
+      const m=(await r.text()).match(/name="app-version" content="([^"]+)"/);
+      if(m&&cur&&m[1]!==cur)location.reload();
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)check();});
+  window.addEventListener('pageshow',check);
+})();
 </script>
 </body>
 </html>
